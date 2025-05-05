@@ -260,7 +260,7 @@ const Settings = ({ settings, updateSettings }) => {
       </div>
       
       <div className="mb-8">
-        <h3 className="text-lg font-semibold mb-2">Categorie da Analizzare</h3>
+        <h3 className="text-lg font-semibold mb-4">Categorie da Analizzare</h3>
         <div className="flex items-center mb-4">
           <button 
             onClick={() => handleSelectAllCategories(true)}
