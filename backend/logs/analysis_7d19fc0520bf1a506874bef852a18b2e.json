@@ -1,0 +1,58 @@
+{
+  "id": "7d19fc0520bf1a506874bef852a18b2e",
+  "timestamp": "2025-05-05T21:38:34.633370",
+  "input_type": "url",
+  "text_length": 2450,
+  "settings": {
+    "methods": {
+      "keywordMatching": true,
+      "contextAnalysis": true,
+      "frequencyAnalysis": true,
+      "proximityAnalysis": true,
+      "patternMatching": true,
+      "sentimentAnalysis": true,
+      "nounPhraseAnalysis": true,
+      "propagandaTechniqueAnalysis": true
+    },
+    "thresholds": {
+      "minKeywordStrength": "low",
+      "minOccurrences": 1,
+      "proximityDistance": 20
+    },
+    "categories": []
+  },
+  "results": {
+    "total_indicators_found": 1,
+    "results": [
+      {
+        "indicator_id": "specific_symbolism",
+        "indicator_name": "Simbolismo/Retorica Specifica",
+        "indicator_description": "Riferimenti a simboli, motti o figure storicamente legati a regimi fascisti",
+        "found_keywords": [
+          {
+            "text": "saluto romano",
+            "strength": "high"
+          },
+          {
+            "text": "presente",
+            "strength": "medium"
+          }
+        ],
+        "overall_strength": "high",
+        "context": [
+          "in occasione della commemorazione ufficiale, il sindaco di milano, giuseppe sala, aveva proposto l'idea di una via intitolata a tutti i giovani uccisi dal terrorismo, accogliendo l'approvazione del presidente del senato, ignazio la russa ascolta articolo si \u00e8 concluso con il rito del \"presente\" insieme al **saluto romano**, in via paladini a milano, il corteo per il 50esimo anniversario della morte di sergio ramelli, giovane del fronte della giovent\u00f9 ucciso 50 anni fa da esponenti di avanguardia operaia.",
+          "approfondimento musk, il **saluto romano** e i segnali in codice tag: milano giuseppe sala **saluto romano** diretta live",
+          "in occasione della commemorazione ufficiale, il sindaco di milano, giuseppe sala, aveva proposto l'idea di una via intitolata a tutti i giovani uccisi dal terrorismo, accogliendo l'approvazione del presidente del senato, ignazio la russa ascolta articolo si \u00e8 concluso con il rito del \"**presente**\" insieme al saluto romano, in via paladini a milano, il corteo per il 50esimo anniversario della morte di sergio ramelli, giovane del fronte della giovent\u00f9 ucciso 50 anni fa da esponenti di avanguardia operaia."
+        ]
+      }
+    ],
+    "analysis_methods": {
+      "keywordMatching": true
+    },
+    "status": "success",
+    "cached": false
+  },
+  "text_excerpt": "In serata si \u00e8 concluso in via Paladini il corteo per il 50esimo anniversario della morte del giovane del Fronte della giovent\u00f9, ucciso da esponenti di Avanguardia operaia. In occasione della commemorazione ufficiale, il sindaco di Milano, Giuseppe Sala, aveva proposto l'idea di una via intitolata a...",
+  "url": "https://tg24.sky.it/cronaca/2025/04/30/ramelli-sala-milano",
+  "domain": "tg24.sky.it"
+}

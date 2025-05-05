@@ -12,6 +12,8 @@ from analysis import TextAnalyzer
 import os
 import json
 import datetime
+from websocket_server import initialize_websocket_routes, start_background_tasks
+import asyncio
 
 # Initialize FastAPI with metadata for documentation
 app = FastAPI(
@@ -186,6 +188,96 @@ async def analyze_text(input_data: AnalysisInput):
         print(f"Unexpected error during analysis: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Analysis error: {str(e)}")
 
+@app.post("/analyze-comparison", 
+    summary="Analisi Comparativa",
+    description="Confronta due testi o URL per evidenziare differenze negli indicatori retorici",
+    response_description="Risultati dell'analisi comparativa",
+    tags=["Analisi"])
+async def analyze_comparison(
+    text1: Optional[str] = None, 
+    url1: Optional[str] = None,
+    text2: Optional[str] = None, 
+    url2: Optional[str] = None, 
+    settings: Optional[AnalysisSettings] = None
+):
+    """
+    Compare two texts or URLs for rhetorical indicators differences.
+    
+    Args:
+        text1: First text to analyze
+        url1: First URL to analyze
+        text2: Second text to analyze
+        url2: Second URL to analyze
+        settings: Analysis settings
+    
+    Returns:
+        Comparative analysis results
+    """
+    # Validate input
+    if not ((text1 or url1) and (text2 or url2)):
+        raise HTTPException(status_code=400, detail="Both sources must be provided (text or URL)")
+    
+    # Analyze first source
+    input_data1 = {"text": text1, "url": url1, "settings": settings.model_dump() if settings else None}
+    results1 = analyzer.analyze_input(input_data1)
+    
+    # Analyze second source
+    input_data2 = {"text": text2, "url": url2, "settings": settings.model_dump() if settings else None}
+    results2 = analyzer.analyze_input(input_data2)
+    
+    # Compare results
+    comparison = {
+        "source1": {
+            "type": "url" if url1 else "text",
+            "content": url1 if url1 else text1,
+            "indicators_count": results1.get("total_indicators_found", 0),
+            "results": results1.get("results", [])
+        },
+        "source2": {
+            "type": "url" if url2 else "text",
+            "content": url2 if url2 else text2,
+            "indicators_count": results2.get("total_indicators_found", 0),
+            "results": results2.get("results", [])
+        },
+        "common_indicators": [],
+        "unique_indicators_source1": [],
+        "unique_indicators_source2": [],
+        "strength_comparison": {
+            "source1": {"high": 0, "medium": 0, "low": 0},
+            "source2": {"high": 0, "medium": 0, "low": 0}
+        }
+    }
+    
+    # Find common and unique indicators
+    indicators1 = {r["indicator_id"]: r for r in results1.get("results", [])}
+    indicators2 = {r["indicator_id"]: r for r in results2.get("results", [])}
+    
+    for id1, indicator1 in indicators1.items():
+        if id1 in indicators2:
+            comparison["common_indicators"].append({
+                "indicator_id": id1,
+                "indicator_name": indicator1["indicator_name"],
+                "source1_strength": indicator1["overall_strength"],
+                "source2_strength": indicators2[id1]["overall_strength"]
+            })
+        else:
+            comparison["unique_indicators_source1"].append(indicator1)
+            
+    for id2, indicator2 in indicators2.items():
+        if id2 not in indicators1:
+            comparison["unique_indicators_source2"].append(indicator2)
+    
+    # Count strengths
+    for indicator in results1.get("results", []):
+        strength = indicator.get("overall_strength", "low")
+        comparison["strength_comparison"]["source1"][strength] += 1
+        
+    for indicator in results2.get("results", []):
+        strength = indicator.get("overall_strength", "low")
+        comparison["strength_comparison"]["source2"][strength] += 1
+    
+    return comparison
+
 @app.get("/indicators", 
     summary="Ottieni tutti gli indicatori",
     description="Restituisce l'elenco completo degli indicatori disponibili per l'analisi",
@@ -248,7 +340,6 @@ async def get_logs(limit: int = 10, skip: int = 0):
             with open(os.path.join("logs", filename), 'r', encoding='utf-8') as f:
                 log_data = json.load(f)
                 logs.append(log_data)
-                
         return {
             "total": len(log_files),
             "logs": logs
@@ -301,7 +392,7 @@ async def get_trends():
                     if "total_indicators_found" not in log_data["results"]:
                         continue
                         
-                    # Count indicators by date
+                    # Count indicators by dates
                     if date not in trend_data["indicators_over_time"]:
                         trend_data["indicators_over_time"][date] = 0
                     trend_data["indicators_over_time"][date] += log_data["results"]["total_indicators_found"]
@@ -315,7 +406,6 @@ async def get_trends():
                     # Calculate method effectiveness
                     analysis_methods = log_data["results"].get("analysis_methods", {})
                     total_indicators = log_data["results"]["total_indicators_found"]
-                    
                     for method, used in analysis_methods.items():
                         if used and total_indicators > 0:
                             if method not in trend_data["method_effectiveness"]:
@@ -338,7 +428,7 @@ async def get_trends():
         if not trend_data["indicators_over_time"]:
             today = datetime.datetime.now().strftime("%Y-%m-%d")
             trend_data["indicators_over_time"][today] = 0
-            
+        
         return trend_data
     except Exception as e:
         print(f"Error retrieving trend data: {str(e)}")
@@ -477,6 +567,80 @@ async def get_web_coverage():
         "top_indicative_domains": indicators_per_domain[:10],
         "low_indicative_domains": indicators_per_domain[-10:] if len(indicators_per_domain) > 10 else []
     }
+
+@app.get("/export-analysis/{format}", 
+    summary="Esporta Analisi",
+    description="Esporta i dati di analisi in diversi formati",
+    response_description="Dati di analisi nel formato richiesto",
+    tags=["Statistiche"])
+async def export_analysis(format: str, days: int = 30):
+    """
+    Export analysis data in different formats.
+    
+    Args:
+        format: Export format (json, csv, txt)
+        days: Number of days of data to include
+        
+    Returns:
+        Formatted analysis data
+    """
+    # Get recent analysis data
+    date_stats = analyzer.analysis_stats.get("analysis_by_date", {})
+    sorted_dates = sorted(date_stats.keys(), reverse=True)
+    recent_dates = sorted_dates[:days]
+    
+    # Filter data to only include the recent dates
+    filtered_stats = {date: date_stats[date] for date in recent_dates if date in date_stats}
+    
+    # Get indicator stats
+    indicator_stats = analyzer.analysis_stats.get("indicators_found", {})
+    
+    # Prepare export data
+    export_data = {
+        "date_range": f"Ultimi {len(filtered_stats)} giorni",
+        "total_analyses": sum(stat.get("count", 0) for stat in filtered_stats.values()),
+        "analyses_by_date": filtered_stats,
+        "indicators_detected": indicator_stats,
+        "export_date": datetime.datetime.now().isoformat()
+    }
+    
+    # Format based on requested type
+    if format.lower() == "json":
+        return export_data
+    elif format.lower() == "csv":
+        # Convert to CSV format (simplified version)
+        csv_lines = ["Date,Analyses,Indicators"]
+        for date, stats in filtered_stats.items():
+            csv_lines.append(f"{date},{stats.get('count', 0)},{stats.get('indicators_found', 0)}")
+            
+        return {"csv_data": "\n".join(csv_lines)}
+    elif format.lower() == "txt":
+        # Convert to human-readable text
+        txt_lines = [
+            f"AntiFa Model - Statistiche di Analisi",
+            f"Periodo: Ultimi {len(filtered_stats)} giorni",
+            f"Analisi totali: {export_data['total_analyses']}",
+            f"Data di esportazione: {export_data['export_date'].split('T')[0]}",
+            "",
+            "Analisi per data:",
+        ]
+        
+        for date, stats in filtered_stats.items():
+            txt_lines.append(f"  {date}: {stats.get('count', 0)} analisi, {stats.get('indicators_found', 0)} indicatori")
+            
+        txt_lines.append("")
+        txt_lines.append("Indicatori più frequenti:")
+        
+        # Sort indicators by frequency
+        sorted_indicators = sorted(indicator_stats.items(), key=lambda x: x[1], reverse=True)
+        for indicator, count in sorted_indicators[:10]:  # Top 10
+            # Find indicator name
+            name = next((ind["name"] for ind in analyzer.indicators if ind["id"] == indicator), indicator)
+            txt_lines.append(f"  {name}: {count}")
+            
+        return {"text_data": "\n".join(txt_lines)}
+    else:
+        raise HTTPException(status_code=400, detail=f"Format '{format}' not supported. Use 'json', 'csv', or 'txt'")
 
 # Custom OpenAPI documentation
 def custom_openapi():

@@ -1,0 +1,112 @@
+{
+  "total_analyses": 4,
+  "indicators_found": {
+    "specific_symbolism": 4
+  },
+  "top_keywords": {
+    "camerata": {
+      "count": 2,
+      "strength": "high",
+      "indicator_id": "specific_symbolism"
+    },
+    "presente": {
+      "count": 4,
+      "strength": "medium",
+      "indicator_id": "specific_symbolism"
+    },
+    "saluto romano": {
+      "count": 3,
+      "strength": "high",
+      "indicator_id": "specific_symbolism"
+    }
+  },
+  "analysis_methods_used": {
+    "keywordMatching": 4,
+    "frequencyAnalysis": 1,
+    "proximityAnalysis": 1,
+    "contextAnalysis": 1,
+    "patternMatching": 1,
+    "sentimentAnalysis": 1,
+    "nounPhraseAnalysis": 1,
+    "propagandaTechniqueAnalysis": 1
+  },
+  "source_types": {
+    "text": 1,
+    "url": 3
+  },
+  "analyzed_domains": {
+    "tg24.sky.it": {
+      "count": 2,
+      "total_indicators": 2,
+      "last_analyzed": "2025-05-05"
+    },
+    "avvenire.it": {
+      "count": 1,
+      "total_indicators": 1,
+      "last_analyzed": "2025-05-05"
+    }
+  },
+  "analysis_by_date": {
+    "2025-05-05": {
+      "count": 4,
+      "indicators_found": 4,
+      "by_source": {
+        "text": 1,
+        "url": 3
+      }
+    }
+  },
+  "recent_urls": [
+    {
+      "url": "https://www.avvenire.it/attualita/pagine/corteo-per-ramelli",
+      "domain": "avvenire.it",
+      "date": "2025-05-05",
+      "indicators_count": 1
+    },
+    {
+      "url": "https://tg24.sky.it/cronaca/2025/04/30/ramelli-sala-milano",
+      "domain": "tg24.sky.it",
+      "date": "2025-05-05",
+      "indicators_count": 1
+    },
+    {
+      "url": "https://tg24.sky.it/cronaca/2025/04/30/ramelli-sala-milano",
+      "domain": "tg24.sky.it",
+      "date": "2025-05-05",
+      "indicators_count": 1
+    }
+  ],
+  "most_indicative_urls": [
+    {
+      "url": "https://tg24.sky.it/cronaca/2025/04/30/ramelli-sala-milano",
+      "domain": "tg24.sky.it",
+      "date": "2025-05-05",
+      "indicators_count": 1,
+      "indicators": [
+        "specific_symbolism"
+      ]
+    },
+    {
+      "url": "https://tg24.sky.it/cronaca/2025/04/30/ramelli-sala-milano",
+      "domain": "tg24.sky.it",
+      "date": "2025-05-05",
+      "indicators_count": 1,
+      "indicators": [
+        "specific_symbolism"
+      ]
+    },
+    {
+      "url": "https://www.avvenire.it/attualita/pagine/corteo-per-ramelli",
+      "domain": "avvenire.it",
+      "date": "2025-05-05",
+      "indicators_count": 1,
+      "indicators": [
+        "specific_symbolism"
+      ]
+    }
+  ],
+  "cache_stats": {
+    "hits": 0,
+    "misses": 4
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "id": "e8984d6a15c0b58a6d003caf7a0654c6",
+  "timestamp": "2025-05-05T21:37:23.300252",
+  "input_type": "text",
+  "text_length": 4335,
+  "settings": {
+    "methods": {
+      "keywordMatching": true,
+      "contextAnalysis": false,
+      "frequencyAnalysis": false,
+      "proximityAnalysis": false,
+      "patternMatching": false,
+      "sentimentAnalysis": false,
+      "nounPhraseAnalysis": false,
+      "propagandaTechniqueAnalysis": false
+    },
+    "thresholds": {
+      "minKeywordStrength": "low",
+      "minOccurrences": 1,
+      "proximityDistance": 20
+    },
+    "categories": []
+  },
+  "results": {
+    "total_indicators_found": 1,
+    "results": [
+      {
+        "indicator_id": "specific_symbolism",
+        "indicator_name": "Simbolismo/Retorica Specifica",
+        "indicator_description": "Riferimenti a simboli, motti o figure storicamente legati a regimi fascisti",
+        "found_keywords": [
+          {
+            "text": "camerata",
+            "strength": "high"
+          },
+          {
+            "text": "presente",
+            "strength": "medium"
+          }
+        ],
+        "overall_strength": "high",
+        "context": [
+          "anche all'interno del cimitero maggiore di lodi, dove da 50 anni riposa sergio ramelli, sabato 3 maggio si \u00e8 tenuto un nuovo raduno dei militanti di ultra destra per ricordare lo studente assassinato nel 1975 attraverso l'ormai diffuso rito del \"presente\", con la chiamata per tre volte al \"**camerata** sergio ramelli\" e la risposta dei presenti con il braccio destro teso.",
+          "abbonati 2 milano attualit\u00e0 politica trasporti cultura e tradizioni eventi e turismo video suggerito recita con un fine 4 maggio 2025 11:20 anche al cimitero di lodi saluti romani per sergio ramelli: a guidarli \u201cl\u2019uomo delle svastiche\u201d sanzanni anche all\u2019interno del cimitero maggiore di lodi, dove da 50 anni riposa sergio ramelli, si \u00e8 tenuto un nuovo raduno dei militanti di ultra destra per ricordare lo studente assassinato nel 1975 con il rito del \u201c**presente**\u201d.",
+          "anche all'interno del cimitero maggiore di lodi, dove da 50 anni riposa sergio ramelli, sabato 3 maggio si \u00e8 tenuto un nuovo raduno dei militanti di ultra destra per ricordare lo studente assassinato nel 1975 attraverso l'ormai diffuso rito del \"**presente**\", con la chiamata per tre volte al \"camerata sergio ramelli\" e la risposta dei presenti con il braccio destro teso.",
+          "il corteo, rigorosamente in fila per quattro davanti alla tomba del ragazzo con lo striscione \"sergio ramelli **presente**\", la corona d\u2019alloro e il tricolore, come riporta il cittadino di lodi ha risposto agli ordini di ettore sanzanni, \"l'uomo delle svastiche\" della rete dei patrioti noto, tra le altre cose, per un discusso compleanno con torta a tema sieg heil e per una recente serata su joseph goebbels organizzata a pavia.",
+          "qui oltre duemila militanti di estrema destra (tra cui esponenti di casa pound, forza nuova, rete dei patrioti e lealt\u00e0 e azione, su cui ora indaga la procura) si sono ritrovati prima in piazzale gorini e poi sotto quella che era casa del 18enne, tra le proteste di alcuni residenti che nel silenzio del \"**presente**\" hanno fatto suonare dai balconi le note del canto partigiano \"bella ciao\"."
+        ]
+      }
+    ],
+    "analysis_methods": {
+      "keywordMatching": true
+    }
+  },
+  "text_excerpt": "ABBONATI\n\n    2\n\nmilano\n\n    Attualit\u00e0\n    Politica\n    Trasporti\n    Cultura e tradizioni\n    Eventi e turismo\n\nvideo suggerito\nRecita con un fine\n4 Maggio 2025\n11:20\nAnche al cimitero di Lodi saluti romani per Sergio Ramelli: a guidarli \u201cl\u2019uomo delle svastiche\u201d Sanzanni\nAnche all\u2019interno del Cimit..."
+}
