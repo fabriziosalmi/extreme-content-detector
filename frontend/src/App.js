@@ -6,6 +6,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import Disclaimer from './components/Disclaimer';
 import Settings from './components/Settings';
+import Statistics from './components/Statistics';
 import axios from 'axios';
 
 // Default settings configuration
@@ -42,6 +43,7 @@ function App() {
   const [error, setError] = useState(null);
   const [settings, setSettings] = useState(defaultSettings);
   const [showSettings, setShowSettings] = useState(false);
+  const [showStatistics, setShowStatistics] = useState(false);
   const [originalText, setOriginalText] = useState('');
 
   // Load settings from localStorage on initial load
@@ -62,6 +64,12 @@ function App() {
 
   const toggleSettings = () => {
     setShowSettings(prev => !prev);
+    setShowStatistics(false);
+  };
+
+  const toggleStatistics = () => {
+    setShowStatistics(prev => !prev);
+    setShowSettings(false);
   };
 
   const handleAnalyze = async (text, url) => {
@@ -117,7 +125,12 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header toggleSettings={toggleSettings} />
+      <Header 
+        toggleSettings={toggleSettings} 
+        toggleStatistics={toggleStatistics}
+        showSettings={showSettings}
+        showStatistics={showStatistics}
+      />
       
       <main className="flex-grow container mx-auto px-4 py-8">
         {showSettings ? (
@@ -125,6 +138,8 @@ function App() {
             settings={settings} 
             updateSettings={updateSettings} 
           />
+        ) : showStatistics ? (
+          <Statistics />
         ) : (
           <>
             <div className="bg-white rounded-lg shadow-lg p-6 mb-8">

@@ -1,0 +1,93 @@
+{
+  "id": "691da8ec94873886d1d9eff432816d99",
+  "timestamp": "2025-05-05T20:35:56.907605",
+  "input_type": "url",
+  "text_length": 2323,
+  "settings": {
+    "methods": {
+      "keywordMatching": true,
+      "contextAnalysis": true,
+      "frequencyAnalysis": true,
+      "proximityAnalysis": true,
+      "patternMatching": true
+    },
+    "thresholds": {
+      "minKeywordStrength": "low",
+      "minOccurrences": 1,
+      "proximityDistance": 20
+    },
+    "categories": [
+      "extreme_nationalism",
+      "revisionism",
+      "hate_speech",
+      "specific_symbolism",
+      "anti_democracy",
+      "victimhood",
+      "traditionalism",
+      "militarism",
+      "conspiracy_theories",
+      "enemy_otherization"
+    ]
+  },
+  "results": {
+    "total_indicators_found": 1,
+    "results": [
+      {
+        "indicator_id": "specific_symbolism",
+        "indicator_name": "Simbolismo/Retorica Specifica",
+        "indicator_description": "Riferimenti a simboli, motti o figure storicamente legati a regimi fascisti",
+        "found_keywords": [
+          {
+            "text": "saluto romano",
+            "strength": "high"
+          },
+          {
+            "text": "presente",
+            "strength": "medium"
+          }
+        ],
+        "overall_strength": "high",
+        "context": [
+          "le indagini si sono chiuse a pochi mesi di distanza dalla sentenza delle sezioni unite della cassazione chiamate ad intervenire sul **saluto romano** la procura di roma, coordinata da francesco lo voi ha chiesto il rinvio a giudizio per 31 militanti di casapound per aver effettuato il **saluto romano** il 7 gennaio del 2024, davanti alla storia sede del movimento sociale italiano di via acca larenzia .",
+          "commenti rimuovere una volta per tutte l\u2019annuale raduno di via acca larenzia e la croce celtica massimo arcangeli il procedimento \u00e8 stato aperto qualche giorno dopo l\u2019 adunata con il **saluto romano** e la \u201cchiamata del presente\u201d.",
+          "le indagini, affidate alla digos e ai carabinieri, si sono chiuse a pochi mesi di distanza dalla sentenza delle sezioni unite della cassazione chiamate ad intervenire sul **saluto romano** .",
+          "italia neofascisti in marcia per sergio ramelli: in migliaia a milano tra saluti romani e \u00abpresente\u00bb per i camerati caduti lorenzo stasi \u00abla \u201cchiamata del presente\u201d o \u201c **saluto romano** \u201d \u00e8 un rituale evocativo della gestualit\u00e0 propria del disciolto partito fascista , integra il delitto previsto dall'articolo 5 delle scelba, ove, avuto riguardo a tutte le circostanze del caso, sia idonea a integrare il concreto pericolo di riorganizzazione del disciolto partito fascista\u00bb, \u00e8 stata la valutazione dei giudici della suprema corte .",
+          "commenti rimuovere una volta per tutte l\u2019annuale raduno di via acca larenzia e la croce celtica massimo arcangeli il procedimento \u00e8 stato aperto qualche giorno dopo l\u2019 adunata con il saluto romano e la \u201cchiamata del **presente**\u201d."
+        ],
+        "frequency_data": {
+          "keyword_counts": {
+            "saluto romano": 5,
+            "presente": 3
+          },
+          "total_occurrences": 8,
+          "density": 1.9900497512437811
+        },
+        "proximity_matches": [
+          {
+            "keyword1": "saluto",
+            "keyword2": "presente",
+            "distance": 7
+          },
+          {
+            "keyword1": "saluto",
+            "keyword2": "presente",
+            "distance": 20
+          },
+          {
+            "keyword1": "saluto",
+            "keyword2": "presente",
+            "distance": 17
+          }
+        ]
+      }
+    ],
+    "analysis_methods": {
+      "keywordMatching": true,
+      "frequencyAnalysis": true,
+      "proximityAnalysis": true,
+      "contextAnalysis": true,
+      "patternMatching": true
+    }
+  },
+  "text_excerpt": "Le indagini si sono chiuse a pochi mesi di distanza dalla sentenza delle sezioni unite della Cassazione chiamate ad intervenire sul saluto romano La procura di Roma, coordinata da Francesco Lo Voi ha chiesto il rinvio a giudizio per 31 militanti di CasaPound per aver effettuato il saluto romano il 7..."
+}

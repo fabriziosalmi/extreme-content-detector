@@ -37,11 +37,16 @@ const ResultsDisplay = ({ results, displayMode = 'detailed', highlightMatches = 
     let highlightedText = originalText;
     allKeywords.forEach(keyword => {
       // Use regex to replace all instances of the keyword with a highlighted version
-      // Adding word boundaries to avoid partial matches
-      const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
-      highlightedText = highlightedText.replace(regex, match => 
-        `<span class="bg-yellow-200 px-0.5 rounded">${match}</span>`
-      );
+      // Adding word boundaries to avoid partial matches and escaping special characters
+      try {
+        const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'gi');
+        highlightedText = highlightedText.replace(regex, match => 
+          `<span class="bg-yellow-200 px-0.5 rounded">${match}</span>`
+        );
+      } catch (error) {
+        console.error(`Error highlighting keyword: ${keyword}`, error);
+      }
     });
 
     return (

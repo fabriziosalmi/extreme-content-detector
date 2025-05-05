@@ -4,17 +4,23 @@ Includes multiple analysis methods and configurable thresholds.
 """
 import json
 import re
+import os
+import datetime
 from typing import Dict, List, Optional, Any, Tuple, Set
 import requests
 from bs4 import BeautifulSoup
 import nltk
 from nltk.tokenize import sent_tokenize, word_tokenize
+import hashlib
 
 # Download necessary NLTK data
 try:
     nltk.data.find('tokenizers/punkt')
 except LookupError:
     nltk.download('punkt')
+
+# Create logs directory if it doesn't exist
+os.makedirs('logs', exist_ok=True)
 
 class TextAnalyzer:
     """Enhanced class responsible for analyzing text for indicators of fascist rhetoric."""
@@ -27,6 +33,14 @@ class TextAnalyzer:
             indicators_file: Path to the JSON file containing indicators.
         """
         self.indicators = self._load_indicators(indicators_file)
+        self.analysis_stats = {
+            "total_analyses": 0,
+            "indicators_found": {},
+            "top_keywords": {},
+            "analysis_methods_used": {},
+            "source_types": {"text": 0, "url": 0}
+        }
+        self._load_stats()
         
     def _load_indicators(self, file_path: str) -> List[Dict[str, Any]]:
         """
@@ -45,6 +59,96 @@ class TextAnalyzer:
         except Exception as e:
             print(f"Error loading indicators file: {e}")
             return []
+    
+    def _load_stats(self):
+        """Load the existing stats from file if it exists."""
+        try:
+            if os.path.exists('logs/analysis_stats.json'):
+                with open('logs/analysis_stats.json', 'r', encoding='utf-8') as f:
+                    self.analysis_stats = json.load(f)
+        except Exception as e:
+            print(f"Error loading stats file: {e}")
+            # Use the default initialized stats
+    
+    def _update_stats(self, results: Dict[str, Any], input_type: str):
+        """
+        Update statistics about analyses.
+        
+        Args:
+            results: The analysis results
+            input_type: "text" or "url"
+        """
+        # Update total analyses count
+        self.analysis_stats["total_analyses"] += 1
+        
+        # Update source type count
+        self.analysis_stats["source_types"][input_type] += 1
+        
+        # Update methods used
+        if "analysis_methods" in results:
+            for method, used in results["analysis_methods"].items():
+                if used:
+                    self.analysis_stats["analysis_methods_used"][method] = self.analysis_stats["analysis_methods_used"].get(method, 0) + 1
+        
+        # Update indicators found stats
+        for indicator in results.get("results", []):
+            indicator_id = indicator["indicator_id"]
+            self.analysis_stats["indicators_found"][indicator_id] = self.analysis_stats["indicators_found"].get(indicator_id, 0) + 1
+            
+            # Update top keywords
+            for keyword in indicator.get("found_keywords", []):
+                keyword_text = keyword["text"]
+                strength = keyword["strength"]
+                if keyword_text not in self.analysis_stats["top_keywords"]:
+                    self.analysis_stats["top_keywords"][keyword_text] = {
+                        "count": 0,
+                        "strength": strength,
+                        "indicator_id": indicator_id
+                    }
+                self.analysis_stats["top_keywords"][keyword_text]["count"] += 1
+        
+        # Save updated stats
+        self._save_stats()
+    
+    def _save_stats(self):
+        """Save the current stats to a JSON file."""
+        try:
+            with open('logs/analysis_stats.json', 'w', encoding='utf-8') as f:
+                json.dump(self.analysis_stats, f, indent=2)
+        except Exception as e:
+            print(f"Error saving stats file: {e}")
+    
+    def _log_analysis(self, text: str, results: Dict[str, Any], settings: Dict[str, Any], input_type: str):
+        """
+        Log analysis results to a JSON file.
+        
+        Args:
+            text: The analyzed text
+            results: The analysis results
+            settings: The settings used for the analysis
+            input_type: "text" or "url"
+        """
+        # Create a hash of the text to use as a unique identifier
+        text_hash = hashlib.md5(text.encode()).hexdigest()
+        
+        # Create the log entry
+        log_entry = {
+            "id": text_hash,
+            "timestamp": datetime.datetime.now().isoformat(),
+            "input_type": input_type,
+            "text_length": len(text),
+            "settings": settings,
+            "results": results,
+            "text_excerpt": text[:300] + "..." if len(text) > 300 else text  # Store a preview of the text
+        }
+        
+        # Save the log entry to a JSON file
+        try:
+            log_filename = f"logs/analysis_{text_hash}.json"
+            with open(log_filename, 'w', encoding='utf-8') as f:
+                json.dump(log_entry, f, indent=2)
+        except Exception as e:
+            print(f"Error logging analysis: {e}")
     
     def fetch_text_from_url(self, url: str) -> Optional[str]:
         """
@@ -280,21 +384,43 @@ class TextAnalyzer:
         enhanced_results = []
         
         for indicator in indicator_results:
-            all_keywords = [kw["text"].split() for kw in indicator["found_keywords"]]
-            # Flatten multi-word keywords and keep only the first word for simplicity
-            all_keywords = [words[0] for words in all_keywords if words]
+            # Extract all found keywords
+            found_keywords = indicator.get("found_keywords", [])
+            if not found_keywords:
+                enhanced_results.append(indicator)
+                continue
+                
+            # For better representation in proximity results, extract representative words
+            # from multi-word keywords that can be found in the text
+            keyword_representatives = []
+            for kw_info in found_keywords:
+                kw_text = kw_info["text"]
+                kw_words = kw_text.split()
+                
+                # For multi-word keywords, find the most distinctive word
+                if len(kw_words) > 1:
+                    # Try to find the least common word that's in our word_positions
+                    distinctive_words = [w for w in kw_words if w in word_positions]
+                    if distinctive_words:
+                        # Sort by frequency (use the least common word)
+                        sorted_words = sorted(distinctive_words, 
+                                             key=lambda w: len(word_positions.get(w, [])))
+                        keyword_representatives.append(sorted_words[0])
+                    else:
+                        # Fallback to first word if none found
+                        first_word = kw_words[0]
+                        if first_word in word_positions:
+                            keyword_representatives.append(first_word)
+                else:
+                    # Single word keyword
+                    if kw_words[0] in word_positions:
+                        keyword_representatives.append(kw_words[0])
             
             proximity_matches = []
             
             # Check all pairs of keywords
-            for i, kw1 in enumerate(all_keywords):
-                if kw1 not in word_positions:
-                    continue
-                    
-                for j, kw2 in enumerate(all_keywords[i+1:], i+1):
-                    if kw2 not in word_positions:
-                        continue
-                    
+            for i, kw1 in enumerate(keyword_representatives):
+                for j, kw2 in enumerate(keyword_representatives[i+1:], i+1):
                     # Check all positions of kw1
                     for pos1 in word_positions[kw1]:
                         # Check all positions of kw2
@@ -616,4 +742,13 @@ class TextAnalyzer:
                 return {"error": f"Failed to scrape content from URL: {url}", "results": []}
             text = scraped_text
         
-        return self.analyze_text(text, settings)
+        results = self.analyze_text(text, settings)
+        
+        # Log the analysis
+        input_type = "url" if url else "text"
+        self._log_analysis(text, results, settings, input_type)
+        
+        # Update stats
+        self._update_stats(results, input_type)
+        
+        return results

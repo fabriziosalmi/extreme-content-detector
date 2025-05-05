@@ -9,10 +9,21 @@ const Settings = ({ settings, updateSettings }) => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setLocalSettings(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    // Handle threshold select separately
+    if (name === 'minKeywordStrength') {
+      setLocalSettings(prev => ({
+        ...prev,
+        thresholds: {
+          ...prev.thresholds,
+          [name]: value
+        }
+      }));
+    } else {
+      setLocalSettings(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
   };
 
   const handleSliderChange = (e) => {

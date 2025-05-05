@@ -1,0 +1,44 @@
+{
+  "id": "ecd4f09aaa014976deb97ca136dec5d6",
+  "timestamp": "2025-05-05T20:35:50.691167",
+  "input_type": "text",
+  "text_length": 127,
+  "settings": {
+    "methods": {
+      "keywordMatching": true,
+      "contextAnalysis": true,
+      "frequencyAnalysis": true,
+      "proximityAnalysis": true,
+      "patternMatching": true
+    },
+    "thresholds": {
+      "minKeywordStrength": "low",
+      "minOccurrences": 1,
+      "proximityDistance": 20
+    },
+    "categories": [
+      "extreme_nationalism",
+      "revisionism",
+      "hate_speech",
+      "specific_symbolism",
+      "anti_democracy",
+      "victimhood",
+      "traditionalism",
+      "militarism",
+      "conspiracy_theories",
+      "enemy_otherization"
+    ]
+  },
+  "results": {
+    "total_indicators_found": 0,
+    "results": [],
+    "analysis_methods": {
+      "keywordMatching": true,
+      "frequencyAnalysis": true,
+      "proximityAnalysis": true,
+      "contextAnalysis": true,
+      "patternMatching": true
+    }
+  },
+  "text_excerpt": "https://www.editorialedomani.it/fatti/saluti-romani-ad-acca-larenzia-chiesto-il-processo-per-31-militanti-di-casapound-yqtx2yr5"
+}

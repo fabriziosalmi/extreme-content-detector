@@ -1,19 +1,39 @@
 """
 FastAPI backend for the AntiFa Model application.
-Handles text analysis and URL scraping.
+Handles text analysis and URL scraping with Swagger documentation.
 """
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.openapi.utils import get_openapi
+from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any, Union
 from analysis import TextAnalyzer
+import os
+import json
+import datetime
 
-app = FastAPI(title="AntiFa Model API")
+# Initialize FastAPI with metadata for documentation
+app = FastAPI(
+    title="AntiFa Model API",
+    description="API per l'analisi di testi e URL per identificare indicatori retorici.",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    contact={
+        "name": "AntiFa Model Team",
+        "url": "https://github.com/fab/antifa-model"
+    },
+    license_info={
+        "name": "MIT License",
+    }
+)
 
 # Configure CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=["http://localhost:3000"],  # Only allow the frontend origin in development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -22,18 +42,93 @@ app.add_middleware(
 # Initialize the analyzer
 analyzer = TextAnalyzer()
 
+# Enhanced models with documentation for Swagger
+class AnalysisSettings(BaseModel):
+    """Model for analysis settings"""
+    methods: Dict[str, bool] = Field(
+        default_factory=lambda: {
+            "keywordMatching": True,
+            "contextAnalysis": False,
+            "frequencyAnalysis": False,
+            "proximityAnalysis": False,
+            "patternMatching": False
+        },
+        description="Metodi di analisi da utilizzare"
+    )
+    thresholds: Dict[str, Any] = Field(
+        default_factory=lambda: {
+            "minKeywordStrength": "low",
+            "minOccurrences": 1,
+            "proximityDistance": 20
+        },
+        description="Soglie per l'analisi"
+    )
+    categories: List[str] = Field(
+        default_factory=list,
+        description="ID delle categorie da analizzare (vuoto = tutte)"
+    )
+
 class AnalysisInput(BaseModel):
     """Model for the analysis input data."""
-    text: Optional[str] = None
-    url: Optional[str] = None
-    settings: Optional[Dict[str, Any]] = None
+    text: Optional[str] = Field(None, description="Testo da analizzare")
+    url: Optional[str] = Field(None, description="URL da cui estrarre e analizzare il testo")
+    settings: Optional[AnalysisSettings] = Field(None, description="Impostazioni di analisi personalizzate")
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "text": "L'Italia deve tornare alla sua antica grandezza con un uomo forte al comando.",
+                "url": None,
+                "settings": {
+                    "methods": {
+                        "keywordMatching": True,
+                        "contextAnalysis": True,
+                        "frequencyAnalysis": True,
+                        "proximityAnalysis": False,
+                        "patternMatching": True
+                    },
+                    "thresholds": {
+                        "minKeywordStrength": "low",
+                        "minOccurrences": 1,
+                        "proximityDistance": 20
+                    },
+                    "categories": ["extreme_nationalism", "anti_democracy"]
+                }
+            }
+        }
 
-@app.get("/")
+class LogParameters(BaseModel):
+    """Model for log query parameters"""
+    limit: int = Field(10, description="Numero massimo di log da restituire")
+    skip: int = Field(0, description="Numero di log da saltare (per la paginazione)")
+
+# API Routes
+@app.get("/", 
+    summary="Informazioni API",
+    description="Restituisce informazioni di base sull'API",
+    response_description="Messaggio di stato dell'API",
+    tags=["Informazioni"])
 async def root():
     """Root endpoint, returns basic API info."""
-    return {"message": "AntiFa Model API is running"}
+    return {
+        "message": "AntiFa Model API is running",
+        "version": "1.0.0",
+        "documentation": "/docs",
+        "endpoints": {
+            "analyze": "POST /analyze - Analizza testo o URL",
+            "indicators": "GET /indicators - Ottieni tutti gli indicatori disponibili",
+            "stats": "GET /stats - Ottieni statistiche globali",
+            "logs": "GET /logs - Ottieni log delle analisi passate",
+            "trends": "GET /trends - Ottieni dati di tendenza per la visualizzazione"
+        }
+    }
 
-@app.post("/analyze")
+@app.post("/analyze", 
+    response_model_exclude_none=True,
+    summary="Analizza testo o URL",
+    description="Analizza un testo o il contenuto di un URL per identificare indicatori retorici specifici",
+    response_description="Risultati dell'analisi con indicatori trovati",
+    tags=["Analisi"])
 async def analyze_text(input_data: AnalysisInput):
     """
     Analyze text or URL content for indicators of fascist rhetoric.
@@ -42,13 +137,13 @@ async def analyze_text(input_data: AnalysisInput):
         input_data: Contains text or URL to analyze and optional settings.
         
     Returns:
-        Analysis results.
+        Analysis results with indicators found.
     """
     if not input_data.text and not input_data.url:
         raise HTTPException(status_code=400, detail="Either text or URL must be provided")
     
     # Convert Pydantic model to dict for the analyzer
-    input_dict = input_data.dict()
+    input_dict = input_data.dict(exclude_none=True)
     
     # Perform analysis with settings
     results = analyzer.analyze_input(input_dict)
@@ -58,7 +153,11 @@ async def analyze_text(input_data: AnalysisInput):
     
     return results
 
-@app.get("/indicators")
+@app.get("/indicators", 
+    summary="Ottieni tutti gli indicatori",
+    description="Restituisce l'elenco completo degli indicatori disponibili per l'analisi",
+    response_description="Lista degli indicatori con parole chiave associate",
+    tags=["Dizionario"])
 async def get_indicators():
     """
     Get all available indicators for reference.
@@ -67,6 +166,222 @@ async def get_indicators():
         List of all indicators.
     """
     return {"indicators": analyzer.indicators}
+
+@app.get("/stats", 
+    summary="Statistiche globali",
+    description="Restituisce statistiche aggregate su tutte le analisi effettuate",
+    response_description="Dati statistici sulle analisi effettuate",
+    tags=["Statistiche"])
+async def get_stats():
+    """
+    Get overall statistics about analyses performed.
+    
+    Returns:
+        Dictionary with analysis statistics.
+    """
+    return analyzer.analysis_stats
+
+@app.get("/logs", 
+    summary="Log delle analisi",
+    description="Restituisce i log delle analisi precedenti con paginazione",
+    response_description="Lista dei log di analisi precedenti",
+    tags=["Statistiche"])
+async def get_logs(limit: int = 10, skip: int = 0):
+    """
+    Get analysis logs.
+    
+    Args:
+        limit: Maximum number of logs to return
+        skip: Number of logs to skip (for pagination)
+        
+    Returns:
+        List of analysis logs.
+    """
+    logs = []
+    try:
+        # Get all log files
+        log_files = []
+        if os.path.exists("logs"):
+            log_files = [f for f in os.listdir("logs") if f.startswith("analysis_") and f.endswith(".json")]
+        
+        # Sort by modification time (newest first)
+        log_files.sort(key=lambda x: os.path.getmtime(os.path.join("logs", x)), reverse=True)
+        
+        # Apply pagination
+        paginated_files = log_files[skip:skip+limit]
+        
+        # Load the log files
+        for filename in paginated_files:
+            with open(os.path.join("logs", filename), 'r', encoding='utf-8') as f:
+                log_data = json.load(f)
+                logs.append(log_data)
+                
+        return {
+            "total": len(log_files),
+            "logs": logs
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving logs: {str(e)}")
+
+@app.get("/trends", 
+    summary="Dati di tendenza",
+    description="Restituisce dati aggregati per visualizzazioni e grafici di tendenza",
+    response_description="Dati di tendenza per l'analisi storica",
+    tags=["Statistiche"])
+async def get_trends():
+    """
+    Get trend data for visualization.
+    
+    Returns:
+        Dictionary with trend data.
+    """
+    try:
+        trend_data = {
+            "indicators_over_time": {},
+            "strength_distribution": {"low": 0, "medium": 0, "high": 0},
+            "method_effectiveness": {}
+        }
+        
+        # Get all log files
+        log_files = []
+        if os.path.exists("logs"):
+            log_files = [f for f in os.listdir("logs") if f.startswith("analysis_") and f.endswith(".json")]
+        
+        # If no log files exist yet, return default empty trend data
+        if not log_files:
+            return trend_data
+        
+        # Process each log
+        for filename in log_files:
+            try:
+                with open(os.path.join("logs", filename), 'r', encoding='utf-8') as f:
+                    log_data = json.load(f)
+                    
+                    # Make sure required fields exist
+                    if "timestamp" not in log_data or "results" not in log_data:
+                        continue
+                    
+                    # Extract date (just the date part of the timestamp)
+                    date = log_data["timestamp"].split("T")[0]
+                    
+                    # Make sure results includes total_indicators_found
+                    if "total_indicators_found" not in log_data["results"]:
+                        continue
+                        
+                    # Count indicators by date
+                    if date not in trend_data["indicators_over_time"]:
+                        trend_data["indicators_over_time"][date] = 0
+                    trend_data["indicators_over_time"][date] += log_data["results"]["total_indicators_found"]
+                    
+                    # Count strength distribution
+                    for indicator in log_data["results"].get("results", []):
+                        strength = indicator.get("overall_strength", "low")
+                        if strength in trend_data["strength_distribution"]:
+                            trend_data["strength_distribution"][strength] += 1
+                    
+                    # Calculate method effectiveness
+                    analysis_methods = log_data["results"].get("analysis_methods", {})
+                    total_indicators = log_data["results"]["total_indicators_found"]
+                    
+                    for method, used in analysis_methods.items():
+                        if used and total_indicators > 0:
+                            if method not in trend_data["method_effectiveness"]:
+                                trend_data["method_effectiveness"][method] = {"count": 0, "total": 0}
+                            trend_data["method_effectiveness"][method]["count"] += 1
+                            trend_data["method_effectiveness"][method]["total"] += total_indicators
+            except Exception as e:
+                # Skip problematic log files
+                print(f"Error processing log file {filename}: {str(e)}")
+                continue
+        
+        # Calculate average indicators found per method
+        for method in trend_data["method_effectiveness"]:
+            count = trend_data["method_effectiveness"][method]["count"]
+            if count > 0:
+                avg = trend_data["method_effectiveness"][method]["total"] / count
+                trend_data["method_effectiveness"][method]["average"] = round(avg, 2)
+        
+        # If no data was found in any logs, ensure dates list isn't empty
+        if not trend_data["indicators_over_time"]:
+            today = datetime.datetime.now().strftime("%Y-%m-%d")
+            trend_data["indicators_over_time"][today] = 0
+            
+        return trend_data
+    except Exception as e:
+        print(f"Error retrieving trend data: {str(e)}")
+        # Return a basic structure even if an error occurs
+        return {
+            "indicators_over_time": {datetime.datetime.now().strftime("%Y-%m-%d"): 0},
+            "strength_distribution": {"low": 0, "medium": 0, "high": 0},
+            "method_effectiveness": {}
+        }
+
+# Custom OpenAPI documentation
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    openapi_schema = get_openapi(
+        title="AntiFa Model API Documentation",
+        version="1.0.0",
+        description="""
+        API per l'analisi di testi alla ricerca di indicatori retorici.
+        
+        Questa API permette di:
+        * Analizzare un testo diretto o estratto da un URL
+        * Accedere al dizionario di indicatori retorici
+        * Visualizzare statistiche e log delle analisi passate
+        * Ottenere dati di tendenza per visualizzazioni grafiche
+        
+        Per ulteriori informazioni, visitare la [repository GitHub](https://github.com/fab/antifa-model)
+        """,
+        routes=app.routes,
+    )
+    
+    # Add security definitions
+    openapi_schema["components"] = {
+        "schemas": {
+            "AnalysisInput": {
+                "title": "AnalysisInput",
+                "type": "object",
+                "properties": {
+                    "text": {"title": "Text", "type": "string", "description": "Testo da analizzare"},
+                    "url": {"title": "URL", "type": "string", "description": "URL da cui estrarre e analizzare il testo"},
+                    "settings": {
+                        "title": "Settings",
+                        "type": "object",
+                        "description": "Impostazioni di analisi personalizzate"
+                    }
+                },
+                "description": "Dati di input per l'analisi"
+            }
+        }
+    }
+    
+    # Customize tags
+    openapi_schema["tags"] = [
+        {
+            "name": "Analisi",
+            "description": "Endpoints per l'analisi di testi e URL"
+        },
+        {
+            "name": "Dizionario",
+            "description": "Endpoints per accedere al dizionario di indicatori"
+        },
+        {
+            "name": "Statistiche",
+            "description": "Endpoints per statistiche e log"
+        },
+        {
+            "name": "Informazioni",
+            "description": "Informazioni generali sull'API"
+        }
+    ]
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
 
 if __name__ == "__main__":
     import uvicorn

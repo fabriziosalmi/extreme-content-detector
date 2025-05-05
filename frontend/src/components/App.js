@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import './App.css';
-import AnalysisForm from './components/AnalysisForm';
-import ResultsDisplay from './components/ResultsDisplay';
-import Header from './components/Header';
-import Footer from './components/Footer';
-import Disclaimer from './components/Disclaimer';
-import Settings from './components/Settings';
+import '../App.css';
+import AnalysisForm from './AnalysisForm';
+import ResultsDisplay from './ResultsDisplay';
+import Header from './Header';
+import Footer from './Footer';
+import Disclaimer from './Disclaimer';
+import Settings from './Settings';
 import axios from 'axios';
 
 // Default settings configuration
