@@ -32,6 +32,11 @@ ChartJS.register(
 const Statistics = () => {
   const [stats, setStats] = useState(null);
   const [trends, setTrends] = useState(null);
+  const [domainStats, setDomainStats] = useState(null);
+  const [urlHistory, setUrlHistory] = useState(null);
+  const [topUrls, setTopUrls] = useState(null);
+  const [dateAnalytics, setDateAnalytics] = useState(null);
+  const [webCoverage, setWebCoverage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('general');
@@ -44,14 +49,32 @@ const Statistics = () => {
       try {
         const API_URL = 'http://localhost:8000';
         
-        // Fetch both stats and trends simultaneously
-        const [statsResponse, trendsResponse] = await Promise.all([
+        // Fetch all stats endpoints simultaneously for better performance
+        const [
+          statsResponse, 
+          trendsResponse,
+          domainStatsResponse,
+          urlHistoryResponse,
+          topUrlsResponse,
+          dateAnalyticsResponse,
+          webCoverageResponse
+        ] = await Promise.all([
           axios.get(`${API_URL}/stats`),
-          axios.get(`${API_URL}/trends`)
+          axios.get(`${API_URL}/trends`),
+          axios.get(`${API_URL}/domain-stats`),
+          axios.get(`${API_URL}/url-history`),
+          axios.get(`${API_URL}/top-urls`),
+          axios.get(`${API_URL}/date-analytics`),
+          axios.get(`${API_URL}/web-coverage`)
         ]);
         
         setStats(statsResponse.data);
         setTrends(trendsResponse.data);
+        setDomainStats(domainStatsResponse.data);
+        setUrlHistory(urlHistoryResponse.data);
+        setTopUrls(topUrlsResponse.data);
+        setDateAnalytics(dateAnalyticsResponse.data);
+        setWebCoverage(webCoverageResponse.data);
       } catch (error) {
         console.error('Error fetching statistics:', error);
         setError('Impossibile caricare le statistiche. Assicurati che il backend sia in esecuzione.');
@@ -174,7 +197,10 @@ const Statistics = () => {
         indicatorsPie: { labels: [], datasets: [] }, 
         trendsChart: { labels: [], datasets: [] }, 
         strengthPie: { labels: [], datasets: [] },
-        methodEffectiveness: { labels: [], datasets: [] }
+        methodEffectiveness: { labels: [], datasets: [] },
+        domainsPie: { labels: [], datasets: [] },
+        tldDistribution: { labels: [], datasets: [] },
+        dateAnalyticsChart: { labels: [], datasets: [] }
       };
     }
     
@@ -205,6 +231,41 @@ const Statistics = () => {
     const methodAverages = methodLabels.map(method => 
       trends.method_effectiveness[method].average || 0
     );
+    
+    // New chart: Domains with most indicators
+    let domainLabels = [];
+    let domainData = [];
+    
+    if (webCoverage && webCoverage.top_indicative_domains) {
+      domainLabels = webCoverage.top_indicative_domains.map(item => item.domain);
+      domainData = webCoverage.top_indicative_domains.map(item => item.indicators_per_analysis);
+    }
+    
+    // TLD Distribution
+    let tldLabels = [];
+    let tldData = [];
+    
+    if (webCoverage && webCoverage.tld_distribution) {
+      const tldEntries = Object.entries(webCoverage.tld_distribution);
+      tldLabels = tldEntries.map(([tld]) => tld);
+      tldData = tldEntries.map(([_, count]) => count);
+    }
+    
+    // Date analytics chart
+    let dateAnalyticsLabels = [];
+    let dateIndicators = [];
+    let dateAnalyses = [];
+    
+    if (dateAnalytics && dateAnalytics.date_analytics) {
+      const sortedDates = Object.keys(dateAnalytics.date_analytics).sort();
+      dateAnalyticsLabels = sortedDates;
+      dateIndicators = sortedDates.map(date => 
+        dateAnalytics.date_analytics[date].indicators_found || 0
+      );
+      dateAnalyses = sortedDates.map(date => 
+        dateAnalytics.date_analytics[date].count || 0
+      );
+    }
     
     return {
       indicatorsPie: {
@@ -266,7 +327,58 @@ const Statistics = () => {
           }
         ]
       },
-      keywordData
+      keywordData,
+      domainsPie: {
+        labels: domainLabels.slice(0, 10),
+        datasets: [
+          {
+            label: 'Indicatori per Analisi',
+            data: domainData.slice(0, 10),
+            backgroundColor: [
+              '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+              '#FF9F40', '#8AC926', '#FF595E', '#6A4C93', '#1982C4'
+            ],
+            borderWidth: 1
+          }
+        ]
+      },
+      tldDistribution: {
+        labels: tldLabels,
+        datasets: [
+          {
+            label: 'Domini per TLD',
+            data: tldData,
+            backgroundColor: [
+              '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+              '#FF9F40', '#8AC926', '#FF595E', '#6A4C93', '#1982C4'
+            ],
+            borderWidth: 1
+          }
+        ]
+      },
+      dateAnalyticsChart: {
+        labels: dateAnalyticsLabels,
+        datasets: [
+          {
+            label: 'Indicatori Trovati',
+            data: dateIndicators,
+            borderColor: '#FF6384',
+            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+            tension: 0.4,
+            fill: true,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Analisi Effettuate',
+            data: dateAnalyses,
+            borderColor: '#36A2EB',
+            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            tension: 0.4,
+            fill: true,
+            yAxisID: 'y1'
+          }
+        ]
+      }
     };
   };
 
@@ -319,6 +431,46 @@ const Statistics = () => {
         font: {
           size: 16
         }
+      }
+    }
+  };
+  
+  // Options for dual-axis chart
+  const dualAxisOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top',
+      },
+      title: {
+        display: true,
+        text: 'Andamento Indicatori e Analisi',
+        font: {
+          size: 16
+        }
+      }
+    },
+    scales: {
+      y: {
+        type: 'linear',
+        display: true,
+        position: 'left',
+        title: {
+          display: true,
+          text: 'Indicatori Trovati'
+        }
+      },
+      y1: {
+        type: 'linear',
+        display: true,
+        position: 'right',
+        title: {
+          display: true,
+          text: 'Analisi Effettuate'
+        },
+        grid: {
+          drawOnChartArea: false,
+        },
       }
     }
   };
@@ -420,6 +572,172 @@ const Statistics = () => {
     </div>
   );
 
+  // Web Coverage Tab
+  const WebCoverageTab = () => (
+    <div className="space-y-6">
+      {webCoverage && (
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+          <p className="font-medium text-lg">
+            URL Analizzati: <span className="font-bold">{webCoverage.total_urls_analyzed || 0}</span>
+          </p>
+          <div className="mt-2 text-sm text-gray-600">
+            <p>Domini Unici: {webCoverage.total_domains || 0}</p>
+            <p>TLD Trovati: {Object.keys(webCoverage.tld_distribution || {}).length}</p>
+          </div>
+        </div>
+      )}
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <h3 className="text-lg font-semibold mb-4">Domini con più Indicatori</h3>
+          <div className="h-64">
+            <Bar data={chartData.domainsPie} options={{...barOptions, plugins: {...barOptions.plugins, title: {...barOptions.plugins.title, text: 'Indicatori per Analisi per Dominio'}}}} />
+          </div>
+        </div>
+        
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <h3 className="text-lg font-semibold mb-4">Distribuzione TLD</h3>
+          <div className="h-64">
+            <Pie data={chartData.tldDistribution} options={{...pieOptions, plugins: {...pieOptions.plugins, title: {...pieOptions.plugins.title, text: 'Domini per TLD'}}}} />
+          </div>
+        </div>
+      </div>
+      
+      <div className="bg-white p-4 rounded-lg shadow-md">
+        <h3 className="text-lg font-semibold mb-4">URL più Significativi</h3>
+        
+        {topUrls && topUrls.top_urls && topUrls.top_urls.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dominio</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Indicatori</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {topUrls.top_urls.map((url, index) => (
+                  <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 truncate max-w-xs">
+                      <a href={url.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        {url.url}
+                      </a>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{url.domain}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{url.date}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                        {url.indicators_count}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-gray-500 italic">Nessun URL significativo trovato</p>
+        )}
+      </div>
+    </div>
+  );
+
+  // URL History Tab
+  const UrlHistoryTab = () => (
+    <div className="space-y-6">
+      <div className="bg-white p-4 rounded-lg shadow-md">
+        <h3 className="text-lg font-semibold mb-4">Cronologia URL Analizzati</h3>
+        
+        {urlHistory && urlHistory.recent_urls && urlHistory.recent_urls.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dominio</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Indicatori</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {urlHistory.recent_urls.map((url, index) => (
+                  <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 truncate max-w-xs">
+                      <a href={url.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        {url.url}
+                      </a>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{url.domain}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{url.date}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        url.indicators_count > 5 ? 'bg-red-100 text-red-800' : 
+                        url.indicators_count > 0 ? 'bg-yellow-100 text-yellow-800' : 
+                        'bg-green-100 text-green-800'
+                      }`}>
+                        {url.indicators_count}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-gray-500 italic">Nessun URL nella cronologia</p>
+        )}
+      </div>
+    </div>
+  );
+  
+  // Date Analytics Tab
+  const DateAnalyticsTab = () => (
+    <div className="space-y-6">
+      <div className="bg-white p-4 rounded-lg shadow-md">
+        <h3 className="text-lg font-semibold mb-4">Andamento nel Tempo</h3>
+        <div className="h-80">
+          <Line data={chartData.dateAnalyticsChart} options={dualAxisOptions} />
+        </div>
+      </div>
+      
+      {dateAnalytics && dateAnalytics.date_analytics && Object.keys(dateAnalytics.date_analytics).length > 0 ? (
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <h3 className="text-lg font-semibold mb-4">Statistiche per Data</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Analisi</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Indicatori</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Testi</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {Object.entries(dateAnalytics.date_analytics)
+                  .sort(([dateA], [dateB]) => new Date(dateB) - new Date(dateA))
+                  .map(([date, stats], index) => (
+                    <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{date}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{stats.count}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{stats.indicators_found}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{stats.by_source.text}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{stats.by_source.url}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <p className="text-gray-500 italic">Nessun dato disponibile per date</p>
+      )}
+    </div>
+  );
+
   // Loading state
   if (loading) {
     return (
@@ -459,7 +777,7 @@ const Statistics = () => {
       <h2 className="text-2xl font-bold mb-6">Statistiche e Tendenze</h2>
       
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-6">
+      <div className="flex flex-wrap border-b border-gray-200 mb-6 overflow-x-auto">
         <button
           onClick={() => setActiveTab('general')}
           className={`py-2 px-4 font-medium text-sm focus:outline-none ${
@@ -488,14 +806,79 @@ const Statistics = () => {
               : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
         >
-          Word Cloud Interattivo
+          Word Cloud
+        </button>
+        <button
+          onClick={() => setActiveTab('webCoverage')}
+          className={`py-2 px-4 font-medium text-sm focus:outline-none ${
+            activeTab === 'webCoverage'
+              ? 'border-b-2 border-primary text-primary'
+              : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          Copertura Web
+        </button>
+        <button
+          onClick={() => setActiveTab('urlHistory')}
+          className={`py-2 px-4 font-medium text-sm focus:outline-none ${
+            activeTab === 'urlHistory'
+              ? 'border-b-2 border-primary text-primary'
+              : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          Cronologia URL
+        </button>
+        <button
+          onClick={() => setActiveTab('dateAnalytics')}
+          className={`py-2 px-4 font-medium text-sm focus:outline-none ${
+            activeTab === 'dateAnalytics'
+              ? 'border-b-2 border-primary text-primary'
+              : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          Analisi Temporale
         </button>
       </div>
       
-      {/* Tab content */}
-      {activeTab === 'general' && <GeneralStatsTab />}
-      {activeTab === 'trends' && <TrendsTab />}
-      {activeTab === 'wordcloud' && <WordCloudTab />}
+      {/* Loading state */}
+      {loading && (
+        <div className="flex justify-center items-center h-64">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent align-[-0.125em]" role="status">
+            <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
+              Caricamento...
+            </span>
+          </div>
+          <p className="ml-2 text-gray-700">Caricamento statistiche...</p>
+        </div>
+      )}
+      
+      {/* Error state */}
+      {error && (
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 my-6" role="alert">
+          <p className="font-bold">Errore</p>
+          <p>{error}</p>
+        </div>
+      )}
+      
+      {/* No data state */}
+      {!loading && !error && (!stats || stats.total_analyses === 0) && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 p-4 my-6" role="alert">
+          <p className="font-bold">Nessun dato disponibile</p>
+          <p>Non sono state ancora effettuate analisi. Prova ad analizzare un testo o un URL per generare statistiche.</p>
+        </div>
+      )}
+      
+      {/* Tab content - only show when not loading and no error */}
+      {!loading && !error && stats && stats.total_analyses > 0 && (
+        <>
+          {activeTab === 'general' && <GeneralStatsTab />}
+          {activeTab === 'trends' && <TrendsTab />}
+          {activeTab === 'wordcloud' && <WordCloudTab />}
+          {activeTab === 'webCoverage' && <WebCoverageTab />}
+          {activeTab === 'urlHistory' && <UrlHistoryTab />}
+          {activeTab === 'dateAnalytics' && <DateAnalyticsTab />}
+        </>
+      )}
     </div>
   );
 };

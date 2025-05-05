@@ -619,6 +619,94 @@ class TextAnalyzer:
                 r'\b(difendere|proteggere|salvare)(?:\s+\w+){0,3}\s+(italia|nazione|patria)\b'
             ],
             "revisionism": [
+                r'\b(storia|verità)(?:\s+\w+){0,5}\s+(nascost[ao]|segret[ao]|manipolat[ao]|falsat[ao])\b',
+                r'\b(non\s+è\s+vero|falso|bugia|menzogna)(?:\s+\w+){0,10}\s+(accadut[ao]|successo|Holocaust?o|genocidio)\b'
+            ],
+            "hate_speech": [
+                r'\b(immigrat[io]|stranier[io]|migranti)(?:\s+\w+){0,5}\s+(invasion[ei]|pericol[io]|minacci[ae]|criminali)\b',
+                r'\b(difendere|proteggere|salvare)(?:\s+\w+){0,3}\s+(razza|etnia|popolo|identità)\b'
+            ],
+            "specific_symbolism": [
+                r'\b(duce|fascismo|ventennio)(?:\s+\w+){0,5}\s+(grand[ei]|glori[ae]|ritorner[àae])\b'
+            ],
+            "anti_democracy": [
+                r'\b(democrazia|parlamento|repubblica)(?:\s+\w+){0,5}\s+(fall[iu]t[ao]|debole|corrott[ao]|inefficiente)\b',
+                r'\b(serve|necessario|occorre)(?:\s+\w+){0,5}\s+(uomo\s+forte|leader\s+forte|mano\s+ferma)\b'
+            ],
+            "victimhood": [
+                r'\b(italian[io]|nostr[ao]\s+popolo)(?:\s+\w+){0,5}\s+(vittim[ae]|perseguitat[io]|discriminat[io])\b',
+                r'\b(ci|noi|italian[io])(?:\s+\w+){0,3}\s+(vogliono|cercano\s+di)(?:\s+\w+){0,3}\s+(sostituire|eliminare|cancellare)\b'
+            ],
+            "traditionalism": [
+                r'\b(famiglia|valori|tradizion[ei])(?:\s+\w+){0,5}\s+(natural[ei]|distrutt[io]|attaccat[io]|minacciat[io])\b',
+                r'\b(teoria|ideologia|propaganda)(?:\s+\w+){0,3}\s+gender\b'
+            ],
+            "militarism": [
+                r'\b(lotta|battaglia|guerra|combattimento)(?:\s+\w+){0,5}\s+(necessari[ao]|inevitabile|occorre)\b',
+                r'\b(violenza|forza)(?:\s+\w+){0,5}\s+(unica\s+soluzione|necessaria|richiesta)\b'
+            ],
+            "conspiracy_theories": [
+                r'\b(poteri\s+forti|elite|lobby|globalisti)(?:\s+\w+){0,10}\s+(controllano|manipolano|dominano)\b',
+                r'\b(piano|complotto|cospirazione)(?:\s+\w+){0,5}\s+(mondiale|globale|internazionale)\b'
+            ],
+            "enemy_otherization": [
+                r'\b(nemici|traditori|collaborazionisti)(?:\s+\w+){0,5}\s+(intern[io]|della\s+patria|della\s+nazione)\b',
+                r'\b(loro|questi)(?:\s+\w+){0,3}\s+(vogliono|cercano\s+di)(?:\s+\w+){0,3}\s+(distruggere|indebolire|sovvertire)\b'
+            ]
+        }
+        
+        enhanced_results = []
+        
+        # Group existing results by indicator_id for easy access
+        results_by_id = {r["indicator_id"]: r for r in indicator_results}
+        
+        # Process each indicator category
+        for category_id, regex_patterns in patterns.items():
+            pattern_matches = []
+            
+            # Apply each regex pattern to the text
+            for pattern in regex_patterns:
+                matches = re.finditer(pattern, text)
+                for match in matches:
+                    matching_text = match.group(0)
+                    pattern_matches.append(matching_text)
+            
+            if pattern_matches:
+                # If we already have this indicator in results, enhance it
+                if category_id in results_by_id:
+                    indicator = results_by_id[category_id].copy()
+                    
+                    # Add pattern matches
+                    indicator["pattern_matches"] = pattern_matches[:5]  # Limit to 5 examples
+                    
+                    # Increase strength due to pattern match
+                    strength_levels = {"low": 1, "medium": 2, "high": 3}
+                    current_strength = strength_levels.get(indicator["overall_strength"], 1)
+                    if current_strength < 3:  # Not already high
+                        indicator["overall_strength"] = "high" if current_strength == 2 else "medium"
+                    
+                    # Replace the existing indicator in our enhanced results
+                    results_by_id[category_id] = indicator
+                else:
+                    # Find the indicator definition from our loaded indicators
+                    indicator_def = None
+                    for ind in self.indicators:
+                        if ind["id"] == category_id:
+                            indicator_def = ind
+                            break
+                    
+                    if indicator_def:
+                        # Create a new indicator result
+                        indicator = {
+                            "indicator_id": category_id,
+                            "indicator_name": indicator_def["name"],
+                            "indicator_description": indicator_def["description"],
+                            "found_keywords": [],  # No specific keywords, just pattern matches
+                            "pattern_matches": pattern_matches[:5],  # Add pattern matches
+                            "overall_strength": "medium"  # Default to medium strength for pattern matches
+                        }
+                        
+                        # Add to our results
                         results_by_id[category_id] = indicator
         
         # Convert the dictionary back to a list
@@ -746,9 +834,9 @@ class TextAnalyzer:
         
         # Log the analysis
         input_type = "url" if url else "text"
-        self._log_analysis(text, results, settings, input_type)
+        self._log_analysis(text, results, settings, input_type, url if url else None)
         
         # Update stats
-        self._update_stats(results, input_type)
+        self._update_stats(results, input_type, url if url else None)
         
         return results

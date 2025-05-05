@@ -316,6 +316,135 @@ async def get_trends():
             "method_effectiveness": {}
         }
 
+@app.get("/domain-stats", 
+    summary="Statistiche per Dominio",
+    description="Restituisce statistiche sulle analisi effettuate per dominio web",
+    response_description="Dati statistici sui domini analizzati",
+    tags=["Statistiche"])
+async def get_domain_stats():
+    """
+    Get statistics about analyzed domains.
+    
+    Returns:
+        Dictionary with domain statistics.
+    """
+    return {
+        "analyzed_domains": analyzer.analysis_stats.get("analyzed_domains", {}),
+        "total_domains": len(analyzer.analysis_stats.get("analyzed_domains", {}))
+    }
+
+@app.get("/url-history", 
+    summary="Cronologia URL",
+    description="Restituisce l'elenco degli URL analizzati recentemente",
+    response_description="Elenco degli URL analizzati",
+    tags=["Statistiche"])
+async def get_url_history(limit: int = 50):
+    """
+    Get recent analyzed URLs history.
+    
+    Args:
+        limit: Maximum number of URLs to return
+        
+    Returns:
+        List of recently analyzed URLs with analysis results.
+    """
+    recent_urls = analyzer.analysis_stats.get("recent_urls", [])
+    return {
+        "recent_urls": recent_urls[:limit],
+        "total_urls": len(recent_urls)
+    }
+
+@app.get("/top-urls", 
+    summary="URL più Significativi",
+    description="Restituisce gli URL con il maggior numero di indicatori rilevati",
+    response_description="Elenco degli URL con maggiori indicazioni",
+    tags=["Statistiche"])
+async def get_top_urls(limit: int = 20):
+    """
+    Get URLs with highest indicator counts.
+    
+    Args:
+        limit: Maximum number of URLs to return
+        
+    Returns:
+        List of URLs with highest indicator counts.
+    """
+    top_urls = analyzer.analysis_stats.get("most_indicative_urls", [])
+    return {
+        "top_urls": top_urls[:limit],
+        "total": len(top_urls)
+    }
+
+@app.get("/date-analytics", 
+    summary="Analisi per Data",
+    description="Restituisce statistiche aggregate per data",
+    response_description="Dati statistici suddivisi per data",
+    tags=["Statistiche"])
+async def get_date_analytics(days: int = 30):
+    """
+    Get analytics grouped by date.
+    
+    Args:
+        days: Number of days to include in results
+        
+    Returns:
+        Dictionary with date-based analytics.
+    """
+    date_stats = analyzer.analysis_stats.get("analysis_by_date", {})
+    
+    # Sort dates and get the most recent ones up to the specified limit
+    sorted_dates = sorted(date_stats.keys(), reverse=True)
+    recent_dates = sorted_dates[:days]
+    
+    # Filter data to only include the recent dates
+    filtered_stats = {date: date_stats[date] for date in recent_dates if date in date_stats}
+    
+    return {
+        "date_analytics": filtered_stats,
+        "total_days": len(filtered_stats)
+    }
+
+@app.get("/web-coverage", 
+    summary="Copertura Web",
+    description="Restituisce statistiche sulla copertura dell'analisi web",
+    response_description="Dati sulla copertura web dell'analisi",
+    tags=["Statistiche"])
+async def get_web_coverage():
+    """
+    Get statistics about web coverage of the analysis.
+    
+    Returns:
+        Dictionary with web coverage statistics.
+    """
+    domains = analyzer.analysis_stats.get("analyzed_domains", {})
+    url_count = len(analyzer.analysis_stats.get("recent_urls", []))
+    
+    # Calculate indicators per domain
+    indicators_per_domain = []
+    for domain, stats in domains.items():
+        if stats.get("count", 0) > 0:
+            indicators_per_domain.append({
+                "domain": domain,
+                "indicators_per_analysis": stats.get("total_indicators", 0) / stats.get("count", 1)
+            })
+    
+    # Sort by indicators per analysis
+    indicators_per_domain.sort(key=lambda x: x["indicators_per_analysis"], reverse=True)
+    
+    # Build TLD statistics
+    tld_stats = {}
+    for domain in domains.keys():
+        tld = domain.split(".")[-1] if "." in domain else "unknown"
+        tld_stats[tld] = tld_stats.get(tld, 0) + 1
+    
+    return {
+        "total_urls_analyzed": url_count,
+        "total_domains": len(domains),
+        "tld_distribution": tld_stats,
+        "top_indicative_domains": indicators_per_domain[:10],
+        "low_indicative_domains": indicators_per_domain[-10:] if len(indicators_per_domain) > 10 else []
+    }
+
 # Custom OpenAPI documentation
 def custom_openapi():
     if app.openapi_schema:
