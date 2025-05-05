@@ -2,6 +2,12 @@
 
 Una web application per analizzare URL e identificare la presenza di indicatori, temi e retoriche comunemente associati a ideologie estremiste.
 
+## Screenshots
+
+![screenshot1](https://github.com/fabriziosalmi/antifa-model/blob/main/screenshot_1.png?raw=true)
+![screenshot2](https://github.com/fabriziosalmi/antifa-model/blob/main/screenshot_2.png?raw=true)
+![screenshot3](https://github.com/fabriziosalmi/antifa-model/blob/main/screenshot_3.png?raw=true)
+
 ## Caratteristiche
 
 - Analisi di contenuto da URL con interfaccia intuitiva
