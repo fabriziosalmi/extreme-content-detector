@@ -1,21 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import './App.css';
+import { 
+  ThemeProvider, createTheme, CssBaseline, 
+  Container, Box, CircularProgress, Alert,
+  Typography
+} from '@mui/material';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AnalysisForm from './components/AnalysisForm';
 import ResultsDisplay from './components/ResultsDisplay';
+import AdvancedAnalysisForm from './components/AdvancedAnalysisForm';
+import ComparativeResultsDisplay from './components/ComparativeResultsDisplay';
+import StatsPage from './pages/StatsPage';
+import AboutPage from './pages/AboutPage';
+import NavBar from './components/NavBar';
+import axios from 'axios';
+import './App.css';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Disclaimer from './components/Disclaimer';
 import Settings from './components/Settings';
 import Statistics from './components/Statistics';
-import axios from 'axios';
 
 // Default settings configuration
 const defaultSettings = {
   enableKeywordMatching: true,
-  enableContextAnalysis: false,
-  enableFrequencyAnalysis: false,
-  enableProximityAnalysis: false,
-  enablePatternMatching: false,
+  enableContextAnalysis: true,
+  enableFrequencyAnalysis: true,
+  enableProximityAnalysis: true,
+  enablePatternMatching: true,
   thresholds: {
     minKeywordStrength: 'low',
     minOccurrences: 1,
@@ -34,8 +45,24 @@ const defaultSettings = {
     { id: 'enemy_otherization', name: 'Demonizzazione del Nemico', enabled: true },
   ],
   displayMode: 'detailed',
-  highlightMatches: true
+  highlightMatches: true,
+  analysisType: 'standard'
 };
+
+// Create a theme
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#1976d2',
+    },
+    secondary: {
+      main: '#dc004e',
+    },
+  },
+  typography: {
+    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+  },
+});
 
 function App() {
   const [results, setResults] = useState(null);
@@ -129,67 +156,96 @@ function App() {
     }
   };
 
+  const handleComparativeAnalysis = (comparativeResults) => {
+    setResults(null);
+    setLoading(false);
+    // Handle comparative results differently
+    setResults(comparativeResults);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header 
-        toggleSettings={toggleSettings} 
-        toggleStatistics={toggleStatistics}
-        showSettings={showSettings}
-        showStatistics={showStatistics}
-      />
-      
-      <main className="flex-grow container mx-auto px-4 py-8">
-        {showSettings ? (
-          <Settings 
-            settings={settings} 
-            updateSettings={updateSettings} 
-          />
-        ) : showStatistics ? (
-          <Statistics />
-        ) : (
-          <>
-            <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-              <AnalysisForm 
-                onAnalyze={handleAnalyze}
-                setLoading={setLoading} 
-                setError={setError} 
-              />
-            </div>
-            
-            <Disclaimer />
-            
-            {loading && (
-              <div className="text-center my-8">
-                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
-                  <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
-                    Caricamento...
-                  </span>
-                </div>
-                <p className="mt-2 text-gray-700">Analisi in corso, attendere...</p>
-              </div>
-            )}
-            
-            {error && (
-              <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 my-6" role="alert">
-                <p className="font-bold">Errore</p>
-                <p>{error}</p>
-              </div>
-            )}
-            
-            {!loading && results && (
-              <ResultsDisplay 
-                results={results} 
-                displayMode={settings.displayMode} 
-                highlightMatches={settings.highlightMatches}
-                originalText={originalText}
-              />
-            )}
-          </>
-        )}
-      </main>
-      
-      <Footer />
-    </div>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Router>
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+          <NavBar />
+          <Container maxWidth="lg" sx={{ flex: 1, py: 4 }}>
+            <Routes>
+              <Route path="/" element={
+                <>
+                  <Header 
+                    toggleSettings={toggleSettings} 
+                    toggleStatistics={toggleStatistics}
+                    showSettings={showSettings}
+                    showStatistics={showStatistics}
+                  />
+                  
+                  <main className="flex-grow container mx-auto px-4 py-8">
+                    {showSettings ? (
+                      <Settings 
+                        settings={settings} 
+                        updateSettings={updateSettings} 
+                      />
+                    ) : showStatistics ? (
+                      <Statistics />
+                    ) : (
+                      <>
+                        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+                          <AnalysisForm 
+                            onAnalyze={handleAnalyze}
+                            setLoading={setLoading} 
+                            setError={setError} 
+                          />
+                        </div>
+                        
+                        <Disclaimer />
+                        
+                        {loading && (
+                          <div className="text-center my-8">
+                            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+                              <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
+                                Caricamento...
+                              </span>
+                            </div>
+                            <p className="mt-2 text-gray-700">Analisi in corso, attendere...</p>
+                          </div>
+                        )}
+                        
+                        {error && (
+                          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 my-6" role="alert">
+                            <p className="font-bold">Errore</p>
+                            <p>{error}</p>
+                          </div>
+                        )}
+                        
+                        {!loading && results && (
+                          <ResultsDisplay 
+                            results={results} 
+                            displayMode={settings.displayMode} 
+                            highlightMatches={settings.highlightMatches}
+                            originalText={originalText}
+                          />
+                        )}
+                      </>
+                    )}
+                  </main>
+                  
+                  <Footer />
+                </>
+              } />
+              <Route path="/advanced" element={<AdvancedAnalysisForm onAnalysisComplete={handleComparativeAnalysis} />} />
+              <Route path="/stats" element={<StatsPage />} />
+              <Route path="/about" element={<AboutPage />} />
+            </Routes>
+          </Container>
+          <Box component="footer" sx={{ py: 2, textAlign: 'center', bgcolor: 'background.paper' }}>
+            <Typography variant="body2" color="text.secondary">
+              © 2023 AntiFa Model - Uno strumento per l'analisi retorica
+            </Typography>
+          </Box>
+        </Box>
+      </Router>
+    </ThemeProvider>
   );
 }
 

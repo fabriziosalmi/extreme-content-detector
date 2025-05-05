@@ -1,11 +1,32 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 const Settings = ({ settings, updateSettings }) => {
   const [localSettings, setLocalSettings] = useState(settings);
+  const [allIndicators, setAllIndicators] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setLocalSettings(settings);
   }, [settings]);
+
+  useEffect(() => {
+    // Fetch indicators for advanced settings
+    const fetchIndicators = async () => {
+      try {
+        setLoading(true);
+        const API_URL = 'http://localhost:8000';
+        const response = await axios.get(`${API_URL}/indicators`);
+        setAllIndicators(response.data.indicators || []);
+      } catch (err) {
+        console.error('Error fetching indicators:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchIndicators();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -17,6 +38,11 @@ const Settings = ({ settings, updateSettings }) => {
           ...prev.thresholds,
           [name]: value
         }
+      }));
+    } else if (name === 'analysisType') {
+      setLocalSettings(prev => ({
+        ...prev,
+        [name]: value
       }));
     } else {
       setLocalSettings(prev => ({
@@ -37,6 +63,22 @@ const Settings = ({ settings, updateSettings }) => {
     }));
   };
 
+  const handleCategoryChange = (categoryId, checked) => {
+    setLocalSettings(prev => ({
+      ...prev,
+      categories: prev.categories.map(cat => 
+        cat.id === categoryId ? {...cat, enabled: checked} : cat
+      )
+    }));
+  };
+
+  const handleSelectAllCategories = (checked) => {
+    setLocalSettings(prev => ({
+      ...prev,
+      categories: prev.categories.map(cat => ({...cat, enabled: checked}))
+    }));
+  };
+
   const handleSave = () => {
     updateSettings(localSettings);
     // Save to localStorage as well
@@ -48,6 +90,27 @@ const Settings = ({ settings, updateSettings }) => {
       <h2 className="text-2xl font-bold mb-6">Impostazioni di Analisi</h2>
       
       <div className="mb-8">
+        <h3 className="text-lg font-semibold mb-4">Tipo di Analisi</h3>
+        <div className="space-y-2">
+          <select
+            id="analysisType"
+            name="analysisType"
+            value={localSettings.analysisType || 'standard'}
+            onChange={handleChange}
+            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
+          >
+            <option value="standard">Analisi Standard</option>
+            <option value="comparison">Analisi Comparativa</option>
+            <option value="historical">Analisi Storica</option>
+            <option value="trend">Analisi di Tendenza</option>
+          </select>
+          <p className="text-sm text-gray-500">
+            Seleziona il tipo di analisi da effettuare. L'analisi standard esamina un singolo testo o URL.
+          </p>
+        </div>
+      </div>
+      
+      <div className="mb-8">
         <h3 className="text-lg font-semibold mb-4">Metodi di Analisi</h3>
         <div className="space-y-4">
           <div className="flex items-center">
@@ -57,10 +120,11 @@ const Settings = ({ settings, updateSettings }) => {
               name="enableKeywordMatching"
               checked={localSettings.enableKeywordMatching}
               onChange={handleChange}
+              disabled={true}
               className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
             />
             <label htmlFor="enableKeywordMatching" className="ml-2 block text-gray-700">
-              Corrispondenza di parole chiave (base)
+              Corrispondenza di parole chiave (obbligatorio)
             </label>
           </div>
           
@@ -196,23 +260,29 @@ const Settings = ({ settings, updateSettings }) => {
       </div>
       
       <div className="mb-8">
-        <h3 className="text-lg font-semibold mb-4">Categorie da Analizzare</h3>
+        <h3 className="text-lg font-semibold mb-2">Categorie da Analizzare</h3>
+        <div className="flex items-center mb-4">
+          <button 
+            onClick={() => handleSelectAllCategories(true)}
+            className="px-3 py-1 mr-2 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+          >
+            Seleziona Tutte
+          </button>
+          <button 
+            onClick={() => handleSelectAllCategories(false)}
+            className="px-3 py-1 bg-gray-500 text-white text-sm rounded hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
+          >
+            Deseleziona Tutte
+          </button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {localSettings.categories.map(category => (
             <div key={category.id} className="flex items-center">
               <input
                 type="checkbox"
                 id={`category-${category.id}`}
-                name={`category-${category.id}`}
                 checked={category.enabled}
-                onChange={() => {
-                  setLocalSettings(prev => ({
-                    ...prev,
-                    categories: prev.categories.map(cat => 
-                      cat.id === category.id ? {...cat, enabled: !cat.enabled} : cat
-                    )
-                  }));
-                }}
+                onChange={(e) => handleCategoryChange(category.id, e.target.checked)}
                 className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
               />
               <label htmlFor={`category-${category.id}`} className="ml-2 block text-sm text-gray-700">

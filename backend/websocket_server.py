@@ -7,7 +7,7 @@ import asyncio
 import json
 import datetime
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import time
 
 # List of connected WebSocket clients
@@ -15,6 +15,9 @@ connected_clients = []
 
 # Track analysis progress
 current_analyses = {}
+
+# Store background tasks to manage their lifecycle
+background_tasks = []
 
 class AnalysisMonitor:
     """
@@ -25,10 +28,11 @@ class AnalysisMonitor:
         self.logs_dir = "logs"
         self.last_check_time = time.time()
         self.processed_files = set()
+        self.running = True
         
     async def monitor_logs(self):
         """Continuously monitor log files for changes and broadcast updates."""
-        while True:
+        while self.running:
             try:
                 # Get all log files
                 if not os.path.exists(self.logs_dir):
@@ -81,13 +85,18 @@ class AnalysisMonitor:
                 
                 # Sleep for a short time before checking again
                 await asyncio.sleep(2)
+            except asyncio.CancelledError:
+                # Handle task cancellation gracefully
+                self.running = False
+                print("Monitor logs task cancelled")
+                break
             except Exception as e:
                 print(f"Error in monitor_logs: {e}")
                 await asyncio.sleep(5)
     
     async def monitor_stats(self):
         """Periodically broadcast stats updates."""
-        while True:
+        while self.running:
             try:
                 # Only broadcast if we have clients
                 if connected_clients:
@@ -112,9 +121,18 @@ class AnalysisMonitor:
                         
                 # Sleep for a minute before checking again
                 await asyncio.sleep(60)
+            except asyncio.CancelledError:
+                # Handle task cancellation gracefully
+                self.running = False
+                print("Monitor stats task cancelled")
+                break
             except Exception as e:
                 print(f"Error in monitor_stats: {e}")
                 await asyncio.sleep(60)
+    
+    def stop(self):
+        """Stop the monitor"""
+        self.running = False
 
 async def broadcast_message(message: Dict[str, Any]):
     """
@@ -169,6 +187,9 @@ async def register_analysis(analysis_id: str, status: str = "started", progress:
     for id in to_remove:
         del current_analyses[id]
 
+# Global monitor instance
+monitor: Optional[AnalysisMonitor] = None
+
 def initialize_websocket_routes(app: FastAPI):
     """
     Initialize WebSocket routes for the given FastAPI application.
@@ -219,11 +240,45 @@ def initialize_websocket_routes(app: FastAPI):
             if websocket in connected_clients:
                 connected_clients.remove(websocket)
 
+async def cleanup_background_tasks():
+    """Clean up background tasks properly"""
+    global monitor, background_tasks
+    
+    print("Cleaning up background tasks...")
+    
+    # Cancel all background tasks
+    for task in background_tasks:
+        if not task.done():
+            task.cancel()
+    
+    # Wait for tasks to complete cancellation
+    if background_tasks:
+        await asyncio.gather(*background_tasks, return_exceptions=True)
+    
+    # Stop the monitor
+    if monitor:
+        monitor.stop()
+    
+    print("Background tasks cleaned up")
+
 # Start background tasks
 async def start_background_tasks():
     """Start all background monitoring tasks."""
-    monitor = AnalysisMonitor()
-    await asyncio.gather(
-        monitor.monitor_logs(),
-        monitor.monitor_stats()
-    )
+    global monitor, background_tasks
+    
+    try:
+        # Create a new monitor instance
+        monitor = AnalysisMonitor()
+        
+        # Start the monitoring tasks
+        logs_task = asyncio.create_task(monitor.monitor_logs())
+        stats_task = asyncio.create_task(monitor.monitor_stats())
+        
+        # Store the tasks for later cleanup
+        background_tasks = [logs_task, stats_task]
+        
+        # Return the tasks for the caller to manage if needed
+        return background_tasks
+    except Exception as e:
+        print(f"Error starting background tasks: {e}")
+        return []

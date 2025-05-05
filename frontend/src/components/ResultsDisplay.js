@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Box, Typography, Card, CardContent, Chip, Accordion, AccordionSummary, AccordionDetails,
-  List, ListItem, ListItemText, ListItemIcon, Divider, Alert, Paper, Grid
+  List, ListItem, ListItemText, ListItemIcon, Alert, Paper, Grid
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ErrorIcon from '@mui/icons-material/Error';

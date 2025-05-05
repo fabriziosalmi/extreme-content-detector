@@ -12,7 +12,7 @@ from analysis import TextAnalyzer
 import os
 import json
 import datetime
-from websocket_server import initialize_websocket_routes, start_background_tasks
+from websocket_server import initialize_websocket_routes, start_background_tasks, cleanup_background_tasks
 import asyncio
 
 # Initialize FastAPI with metadata for documentation
@@ -31,6 +31,19 @@ app = FastAPI(
         "name": "MIT License",
     }
 )
+
+# Register startup and shutdown event handlers
+@app.on_event("startup")
+async def startup_event():
+    """Initialize background tasks when the app starts"""
+    print("Starting background tasks...")
+    await start_background_tasks()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up background tasks when the app shuts down"""
+    print("Shutting down, cleaning up background tasks...")
+    await cleanup_background_tasks()
 
 # Configure CORS for frontend
 app.add_middleware(
