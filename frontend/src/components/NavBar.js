@@ -1,13 +1,14 @@
 import React from 'react';
 import { 
   AppBar, Toolbar, Typography, Button, Box, 
-  useTheme, useMediaQuery, IconButton, Menu, MenuItem
+  useTheme, useMediaQuery, IconButton, Menu, MenuItem, Avatar
 } from '@mui/material';
 import {
   BarChart as StatsIcon,
   Analytics as AnalyzeIcon,
   InfoOutlined as InfoIcon,
-  Menu as MenuIcon
+  Menu as MenuIcon,
+  Settings as SettingsIcon
 } from '@mui/icons-material';
 import { Link, useLocation } from 'react-router-dom';
 // Try to import logo but handle if it doesn't exist
@@ -19,7 +20,7 @@ try {
   logo = null;
 }
 
-const NavBar = () => {
+const NavBar = ({ toggleSettings }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const location = useLocation();
@@ -64,9 +65,18 @@ const NavBar = () => {
         to="/about" 
         color={isCurrentPath('/about') ? "secondary" : "inherit"}
         startIcon={<InfoIcon />}
+        sx={{ mr: 2 }}
       >
         Informazioni
       </Button>
+      <IconButton 
+        color="inherit" 
+        onClick={toggleSettings}
+        sx={{ ml: 1 }}
+        aria-label="Impostazioni"
+      >
+        <SettingsIcon />
+      </IconButton>
     </>
   );
   
@@ -76,23 +86,13 @@ const NavBar = () => {
       anchorEl={mobileMenuAnchor}
       open={Boolean(mobileMenuAnchor)}
       onClose={handleMenuClose}
+      sx={{ mt: 1 }}
     >
       <MenuItem 
         component={Link} 
         to="/" 
         onClick={handleMenuClose}
         sx={{ 
-          color: isCurrentPath('/') ? theme.palette.secondary.main : 'inherit'
-        }}
-      >
-        <AnalyzeIcon sx={{ mr: 1 }} /> Analizza
-      </MenuItem>
-      <MenuItem 
-        component={Link} 
-        to="/stats" 
-        onClick={handleMenuClose}
-        sx={{ 
-          color: isCurrentPath('/stats') ? theme.palette.secondary.main : 'inherit'
         }}
       >
         <StatsIcon sx={{ mr: 1 }} /> Statistiche
