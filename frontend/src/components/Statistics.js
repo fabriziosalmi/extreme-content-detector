@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -13,6 +13,8 @@ import {
 } from 'chart.js';
 import { Bar, Pie, Line } from 'react-chartjs-2';
 import axios from 'axios';
+import * as d3 from 'd3';
+import cloud from 'd3-cloud';
 
 // Register ChartJS components
 ChartJS.register(
@@ -33,6 +35,7 @@ const Statistics = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('general');
+  const wordCloudRef = useRef(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -59,6 +62,109 @@ const Statistics = () => {
     
     fetchData();
   }, []);
+
+  // Use useCallback to memoize renderWordCloud function
+  const renderWordCloud = useCallback(() => {
+    if (!stats || !stats.top_keywords) return;
+
+    // Clear previous word cloud
+    d3.select(wordCloudRef.current).selectAll("*").remove();
+
+    const width = wordCloudRef.current.clientWidth;
+    const height = 500;
+    
+    // Prepare data for the word cloud
+    const words = Object.entries(stats.top_keywords || {}).map(([text, data]) => ({
+      text,
+      value: data.count * 10, // Scale up the size
+      strength: data.strength,
+      indicator: data.indicator_id
+    }));
+
+    // Color scale based on strength
+    const colorScale = d3.scaleOrdinal()
+      .domain(['low', 'medium', 'high'])
+      .range(['#FFCE56', '#FF9F40', '#FF6384']);
+
+    // Create the layout
+    const layout = cloud()
+      .size([width, height])
+      .words(words)
+      .padding(5)
+      .rotate(() => 0)
+      .fontSize(d => Math.sqrt(d.value) * 5)
+      .on("end", draw);
+      
+    // Start the layout
+    layout.start();
+
+    // Function to draw the word cloud
+    function draw(words) {
+      const tooltip = d3.select(wordCloudRef.current)
+        .append("div")
+        .attr("class", "tooltip")
+        .style("position", "absolute")
+        .style("visibility", "hidden")
+        .style("background-color", "white")
+        .style("border", "1px solid #ddd")
+        .style("border-radius", "4px")
+        .style("padding", "8px")
+        .style("box-shadow", "0 2px 10px rgba(0,0,0,0.1)")
+        .style("pointer-events", "none");
+
+      d3.select(wordCloudRef.current)
+        .append("svg")
+        .attr("width", layout.size()[0])
+        .attr("height", layout.size()[1])
+        .append("g")
+        .attr("transform", `translate(${layout.size()[0] / 2},${layout.size()[1] / 2})`)
+        .selectAll("text")
+        .data(words)
+        .enter()
+        .append("text")
+        .style("font-size", d => `${d.size}px`)
+        .style("font-family", "Impact")
+        .style("fill", d => colorScale(d.strength))
+        .attr("text-anchor", "middle")
+        .attr("transform", d => `translate(${d.x}, ${d.y}) rotate(${d.rotate})`)
+        .text(d => d.text)
+        .style("cursor", "pointer")
+        .on("mouseover", function(event, d) {
+          d3.select(this)
+            .transition()
+            .duration(200)
+            .style("font-size", `${d.size * 1.2}px`)
+            .style("font-weight", "bold");
+            
+          tooltip
+            .style("visibility", "visible")
+            .html(`
+              <strong>${d.text}</strong><br/>
+              Occorrenze: ${d.value / 10}<br/>
+              Rilevanza: ${d.strength === 'high' ? 'Alta' : d.strength === 'medium' ? 'Media' : 'Bassa'}<br/>
+              Categoria: ${d.indicator}
+            `)
+            .style("top", (event.pageY - 100) + "px")
+            .style("left", (event.pageX - 100) + "px");
+        })
+        .on("mouseout", function(event, d) {
+          d3.select(this)
+            .transition()
+            .duration(200)
+            .style("font-size", `${d.size}px`)
+            .style("font-weight", "normal");
+            
+          tooltip.style("visibility", "hidden");
+        });
+    }
+  }, [stats]); // Add stats as dependency
+
+  // Effect to render word cloud when data is available
+  useEffect(() => {
+    if (stats && wordCloudRef.current && activeTab === 'wordcloud') {
+      renderWordCloud();
+    }
+  }, [stats, activeTab, renderWordCloud]); // Add renderWordCloud to dependencies
 
   // Configure charts based on the data
   const getChartData = () => {
@@ -301,6 +407,19 @@ const Statistics = () => {
     </div>
   );
 
+  // Word Cloud Tab
+  const WordCloudTab = () => (
+    <div className="space-y-6">
+      <div className="bg-white p-4 rounded-lg shadow-md">
+        <h3 className="text-lg font-semibold mb-4">Cloud di Parole Interattivo</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          Passa il mouse sulle parole per vedere i dettagli. La dimensione rappresenta la frequenza e il colore la rilevanza.
+        </p>
+        <div ref={wordCloudRef} className="w-full h-[500px] relative" />
+      </div>
+    </div>
+  );
+
   // Loading state
   if (loading) {
     return (
@@ -361,10 +480,22 @@ const Statistics = () => {
         >
           Tendenze
         </button>
+        <button
+          onClick={() => setActiveTab('wordcloud')}
+          className={`py-2 px-4 font-medium text-sm focus:outline-none ${
+            activeTab === 'wordcloud'
+              ? 'border-b-2 border-primary text-primary'
+              : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          Word Cloud Interattivo
+        </button>
       </div>
       
       {/* Tab content */}
-      {activeTab === 'general' ? <GeneralStatsTab /> : <TrendsTab />}
+      {activeTab === 'general' && <GeneralStatsTab />}
+      {activeTab === 'trends' && <TrendsTab />}
+      {activeTab === 'wordcloud' && <WordCloudTab />}
     </div>
   );
 };

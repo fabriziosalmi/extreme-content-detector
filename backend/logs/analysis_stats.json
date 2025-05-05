@@ -1,29 +1,29 @@
 {
-  "total_analyses": 2,
+  "total_analyses": 4,
   "indicators_found": {
-    "specific_symbolism": 1
+    "specific_symbolism": 3
   },
   "top_keywords": {
     "saluto romano": {
-      "count": 1,
+      "count": 3,
       "strength": "high",
       "indicator_id": "specific_symbolism"
     },
     "presente": {
-      "count": 1,
+      "count": 3,
       "strength": "medium",
       "indicator_id": "specific_symbolism"
     }
   },
   "analysis_methods_used": {
-    "keywordMatching": 2,
-    "frequencyAnalysis": 2,
-    "proximityAnalysis": 2,
-    "contextAnalysis": 2,
-    "patternMatching": 2
+    "keywordMatching": 4,
+    "frequencyAnalysis": 4,
+    "proximityAnalysis": 4,
+    "contextAnalysis": 4,
+    "patternMatching": 4
   },
   "source_types": {
     "text": 1,
-    "url": 1
+    "url": 3
   }
 }

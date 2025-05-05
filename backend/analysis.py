@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 import nltk
 from nltk.tokenize import sent_tokenize, word_tokenize
 import hashlib
+import urllib.parse  # For URL domain extraction
 
 # Download necessary NLTK data
 try:
@@ -38,7 +39,11 @@ class TextAnalyzer:
             "indicators_found": {},
             "top_keywords": {},
             "analysis_methods_used": {},
-            "source_types": {"text": 0, "url": 0}
+            "source_types": {"text": 0, "url": 0},
+            "analyzed_domains": {},  # Track domains that have been analyzed
+            "analysis_by_date": {},  # Track analyses by date
+            "recent_urls": [],       # Store recent analyzed URLs
+            "most_indicative_urls": []  # URLs with highest indicator counts
         }
         self._load_stats()
         
@@ -70,19 +75,95 @@ class TextAnalyzer:
             print(f"Error loading stats file: {e}")
             # Use the default initialized stats
     
-    def _update_stats(self, results: Dict[str, Any], input_type: str):
+    def _extract_domain(self, url: str) -> str:
+        """Extract domain name from URL."""
+        try:
+            parsed_url = urllib.parse.urlparse(url)
+            domain = parsed_url.netloc
+            # Remove www. prefix if present
+            if domain.startswith('www.'):
+                domain = domain[4:]
+            return domain
+        except Exception:
+            return "unknown_domain"
+    
+    def _update_stats(self, results: Dict[str, Any], input_type: str, url: Optional[str] = None):
         """
         Update statistics about analyses.
         
         Args:
             results: The analysis results
             input_type: "text" or "url"
+            url: Optional URL if input_type is "url"
         """
         # Update total analyses count
         self.analysis_stats["total_analyses"] += 1
         
+        # Get current date for date-based stats
+        today = datetime.datetime.now().strftime("%Y-%m-%d")
+        if today not in self.analysis_stats["analysis_by_date"]:
+            self.analysis_stats["analysis_by_date"][today] = {
+                "count": 0,
+                "indicators_found": 0,
+                "by_source": {"text": 0, "url": 0}
+            }
+        
+        # Update today's stats
+        self.analysis_stats["analysis_by_date"][today]["count"] += 1
+        self.analysis_stats["analysis_by_date"][today]["indicators_found"] += results["total_indicators_found"]
+        self.analysis_stats["analysis_by_date"][today]["by_source"][input_type] += 1
+        
         # Update source type count
         self.analysis_stats["source_types"][input_type] += 1
+        
+        # Update domain stats if URL was provided
+        if url:
+            domain = self._extract_domain(url)
+            if domain not in self.analysis_stats["analyzed_domains"]:
+                self.analysis_stats["analyzed_domains"][domain] = {
+                    "count": 0,
+                    "total_indicators": 0,
+                    "last_analyzed": today
+                }
+            
+            # Update domain stats
+            self.analysis_stats["analyzed_domains"][domain]["count"] += 1
+            self.analysis_stats["analyzed_domains"][domain]["total_indicators"] += results["total_indicators_found"]
+            self.analysis_stats["analyzed_domains"][domain]["last_analyzed"] = today
+            
+            # Add to recent URLs (keeping only the last 50)
+            recent_url_entry = {
+                "url": url,
+                "domain": domain,
+                "date": today,
+                "indicators_count": results["total_indicators_found"]
+            }
+            
+            # Add to recent URLs list, maintaining max length of 50
+            self.analysis_stats["recent_urls"] = [recent_url_entry] + self.analysis_stats["recent_urls"]
+            if len(self.analysis_stats["recent_urls"]) > 50:
+                self.analysis_stats["recent_urls"] = self.analysis_stats["recent_urls"][:50]
+            
+            # Update most indicative URLs if this URL has significant indicators
+            if results["total_indicators_found"] > 0:
+                # Add to most indicative URLs
+                indicative_url_entry = {
+                    "url": url,
+                    "domain": domain,
+                    "date": today,
+                    "indicators_count": results["total_indicators_found"],
+                    "indicators": [ind["indicator_id"] for ind in results.get("results", [])]
+                }
+                
+                # Insert into most_indicative_urls, keeping it sorted by indicator count
+                self.analysis_stats["most_indicative_urls"].append(indicative_url_entry)
+                self.analysis_stats["most_indicative_urls"].sort(
+                    key=lambda x: x["indicators_count"], 
+                    reverse=True
+                )
+                
+                # Keep only top 50
+                self.analysis_stats["most_indicative_urls"] = self.analysis_stats["most_indicative_urls"][:50]
         
         # Update methods used
         if "analysis_methods" in results:
@@ -118,7 +199,7 @@ class TextAnalyzer:
         except Exception as e:
             print(f"Error saving stats file: {e}")
     
-    def _log_analysis(self, text: str, results: Dict[str, Any], settings: Dict[str, Any], input_type: str):
+    def _log_analysis(self, text: str, results: Dict[str, Any], settings: Dict[str, Any], input_type: str, url: Optional[str] = None):
         """
         Log analysis results to a JSON file.
         
@@ -127,6 +208,7 @@ class TextAnalyzer:
             results: The analysis results
             settings: The settings used for the analysis
             input_type: "text" or "url"
+            url: Optional URL if input_type is "url"
         """
         # Create a hash of the text to use as a unique identifier
         text_hash = hashlib.md5(text.encode()).hexdigest()
@@ -141,6 +223,12 @@ class TextAnalyzer:
             "results": results,
             "text_excerpt": text[:300] + "..." if len(text) > 300 else text  # Store a preview of the text
         }
+        
+        # Add URL information if applicable
+        if url:
+            domain = self._extract_domain(url)
+            log_entry["url"] = url
+            log_entry["domain"] = domain
         
         # Save the log entry to a JSON file
         try:
@@ -531,94 +619,6 @@ class TextAnalyzer:
                 r'\b(difendere|proteggere|salvare)(?:\s+\w+){0,3}\s+(italia|nazione|patria)\b'
             ],
             "revisionism": [
-                r'\b(storia|verità)(?:\s+\w+){0,5}\s+(nascost[ao]|segret[ao]|manipolat[ao]|falsat[ao])\b',
-                r'\b(non\s+è\s+vero|falso|bugia|menzogna)(?:\s+\w+){0,10}\s+(accadut[ao]|successo|Holocaust?o|genocidio)\b'
-            ],
-            "hate_speech": [
-                r'\b(immigrat[io]|stranier[io]|migranti)(?:\s+\w+){0,5}\s+(invasion[ei]|pericol[io]|minacci[ae]|criminali)\b',
-                r'\b(difendere|proteggere|salvare)(?:\s+\w+){0,3}\s+(razza|etnia|popolo|identità)\b'
-            ],
-            "specific_symbolism": [
-                r'\b(duce|fascismo|ventennio)(?:\s+\w+){0,5}\s+(grand[ei]|glori[ae]|ritorner[àae])\b'
-            ],
-            "anti_democracy": [
-                r'\b(democrazia|parlamento|repubblica)(?:\s+\w+){0,5}\s+(fall[iu]t[ao]|debole|corrott[ao]|inefficiente)\b',
-                r'\b(serve|necessario|occorre)(?:\s+\w+){0,5}\s+(uomo\s+forte|leader\s+forte|mano\s+ferma)\b'
-            ],
-            "victimhood": [
-                r'\b(italian[io]|nostr[ao]\s+popolo)(?:\s+\w+){0,5}\s+(vittim[ae]|perseguitat[io]|discriminat[io])\b',
-                r'\b(ci|noi|italian[io])(?:\s+\w+){0,3}\s+(vogliono|cercano\s+di)(?:\s+\w+){0,3}\s+(sostituire|eliminare|cancellare)\b'
-            ],
-            "traditionalism": [
-                r'\b(famiglia|valori|tradizion[ei])(?:\s+\w+){0,5}\s+(natural[ei]|distrutt[io]|attaccat[io]|minacciat[io])\b',
-                r'\b(teoria|ideologia|propaganda)(?:\s+\w+){0,3}\s+gender\b'
-            ],
-            "militarism": [
-                r'\b(lotta|battaglia|guerra|combattimento)(?:\s+\w+){0,5}\s+(necessari[ao]|inevitabile|occorre)\b',
-                r'\b(violenza|forza)(?:\s+\w+){0,5}\s+(unica\s+soluzione|necessaria|richiesta)\b'
-            ],
-            "conspiracy_theories": [
-                r'\b(poteri\s+forti|elite|lobby|globalisti)(?:\s+\w+){0,10}\s+(controllano|manipolano|dominano)\b',
-                r'\b(piano|complotto|cospirazione)(?:\s+\w+){0,5}\s+(mondiale|globale|internazionale)\b'
-            ],
-            "enemy_otherization": [
-                r'\b(nemici|traditori|collaborazionisti)(?:\s+\w+){0,5}\s+(intern[io]|della\s+patria|della\s+nazione)\b',
-                r'\b(loro|questi)(?:\s+\w+){0,3}\s+(vogliono|cercano\s+di)(?:\s+\w+){0,3}\s+(distruggere|indebolire|sovvertire)\b'
-            ]
-        }
-        
-        enhanced_results = []
-        
-        # Group existing results by indicator_id for easy access
-        results_by_id = {r["indicator_id"]: r for r in indicator_results}
-        
-        # Process each indicator category
-        for category_id, regex_patterns in patterns.items():
-            pattern_matches = []
-            
-            # Apply each regex pattern to the text
-            for pattern in regex_patterns:
-                matches = re.finditer(pattern, text)
-                for match in matches:
-                    matching_text = match.group(0)
-                    pattern_matches.append(matching_text)
-            
-            if pattern_matches:
-                # If we already have this indicator in results, enhance it
-                if category_id in results_by_id:
-                    indicator = results_by_id[category_id].copy()
-                    
-                    # Add pattern matches
-                    indicator["pattern_matches"] = pattern_matches[:5]  # Limit to 5 examples
-                    
-                    # Increase strength due to pattern match
-                    strength_levels = {"low": 1, "medium": 2, "high": 3}
-                    current_strength = strength_levels.get(indicator["overall_strength"], 1)
-                    if current_strength < 3:  # Not already high
-                        indicator["overall_strength"] = "high" if current_strength == 2 else "medium"
-                    
-                    # Replace the existing indicator in our enhanced results
-                    results_by_id[category_id] = indicator
-                else:
-                    # Find the indicator definition from our loaded indicators
-                    indicator_def = None
-                    for ind in self.indicators:
-                        if ind["id"] == category_id:
-                            indicator_def = ind
-                            break
-                    
-                    if indicator_def:
-                        # Create a new indicator result
-                        indicator = {
-                            "indicator_id": category_id,
-                            "indicator_name": indicator_def["name"],
-                            "indicator_description": indicator_def["description"],
-                            "found_keywords": [],  # No specific keywords, just pattern matches
-                            "pattern_matches": pattern_matches[:5],  # Add pattern matches
-                            "overall_strength": "medium"  # Default to medium strength for pattern matches
-                        }
-                        
-                        # Add to our results
                         results_by_id[category_id] = indicator
         
         # Convert the dictionary back to a list

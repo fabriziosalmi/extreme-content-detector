@@ -4,3 +4,5 @@ frontend/node_modules/*
 frontend/node_modules/@*
 backend/__pycache__/
 .DS_Store
+frontend/node_modules/.cache/default-development/0.pack
+frontend/node_modules/.cache/default-development/1.pack
