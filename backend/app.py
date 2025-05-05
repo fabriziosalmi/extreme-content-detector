@@ -74,8 +74,8 @@ class AnalysisInput(BaseModel):
     url: Optional[str] = Field(None, description="URL da cui estrarre e analizzare il testo")
     settings: Optional[AnalysisSettings] = Field(None, description="Impostazioni di analisi personalizzate")
     
-    class Config:
-        schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "text": "L'Italia deve tornare alla sua antica grandezza con un uomo forte al comando.",
                 "url": None,
@@ -96,11 +96,32 @@ class AnalysisInput(BaseModel):
                 }
             }
         }
+    }
 
 class LogParameters(BaseModel):
     """Model for log query parameters"""
     limit: int = Field(10, description="Numero massimo di log da restituire")
     skip: int = Field(0, description="Numero di log da saltare (per la paginazione)")
+
+class AnalysisRequest(BaseModel):
+    text: Optional[str] = None
+    url: Optional[str] = None
+    settings: Optional[dict] = None
+
+    model_config = {
+        "json_schema_extra": { # Renamed from schema_extra
+            "examples": [
+                {
+                    "text": "Questo è un testo di esempio contenente parole chiave come rivoluzione e resistenza.",
+                    "settings": {"keywordMatching": True, "contextAnalysis": False}
+                },
+                {
+                    "url": "http://example.com/article",
+                    "settings": {"sentimentAnalysis": True}
+                }
+            ]
+        }
+    }
 
 # API Routes
 @app.get("/", 
@@ -139,19 +160,31 @@ async def analyze_text(input_data: AnalysisInput):
     Returns:
         Analysis results with indicators found.
     """
+    print(f"Received analysis request: text length={len(input_data.text or '')} url={input_data.url or 'None'}")
+    
     if not input_data.text and not input_data.url:
         raise HTTPException(status_code=400, detail="Either text or URL must be provided")
     
     # Convert Pydantic model to dict for the analyzer
-    input_dict = input_data.dict(exclude_none=True)
+    input_dict = input_data.model_dump(exclude_none=True)
     
-    # Perform analysis with settings
-    results = analyzer.analyze_input(input_dict)
-    
-    if "error" in results:
-        raise HTTPException(status_code=400, detail=results["error"])
-    
-    return results
+    try:
+        # Perform analysis with settings
+        results = analyzer.analyze_input(input_dict)
+        
+        if "error" in results:
+            print(f"Analysis error: {results['error']}")
+            raise HTTPException(status_code=400, detail=results["error"])
+        
+        # Add status field for frontend to check
+        results["status"] = "success"
+        results["cached"] = False  # Add indication if result was from cache
+        
+        print(f"Analysis completed: found {results.get('total_indicators_found', 0)} indicators")
+        return results
+    except Exception as e:
+        print(f"Unexpected error during analysis: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Analysis error: {str(e)}")
 
 @app.get("/indicators", 
     summary="Ottieni tutti gli indicatori",

@@ -72,7 +72,7 @@ function App() {
     setShowSettings(false);
   };
 
-  const handleAnalyze = async (text, url) => {
+  const handleAnalyze = async (text, url, results) => {
     setLoading(true);
     setError(null);
     setResults(null);
@@ -85,6 +85,12 @@ function App() {
     }
     
     try {
+      // If results are passed directly, use them instead of making an API call
+      if (results) {
+        setResults(results);
+        return;
+      }
+      
       // Prepare the request payload based on settings
       const payload = {
         text,

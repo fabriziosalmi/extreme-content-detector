@@ -32,7 +32,6 @@ ChartJS.register(
 const Statistics = () => {
   const [stats, setStats] = useState(null);
   const [trends, setTrends] = useState(null);
-  const [domainStats, setDomainStats] = useState(null);
   const [urlHistory, setUrlHistory] = useState(null);
   const [topUrls, setTopUrls] = useState(null);
   const [dateAnalytics, setDateAnalytics] = useState(null);
@@ -53,7 +52,6 @@ const Statistics = () => {
         const [
           statsResponse, 
           trendsResponse,
-          domainStatsResponse,
           urlHistoryResponse,
           topUrlsResponse,
           dateAnalyticsResponse,
@@ -61,7 +59,6 @@ const Statistics = () => {
         ] = await Promise.all([
           axios.get(`${API_URL}/stats`),
           axios.get(`${API_URL}/trends`),
-          axios.get(`${API_URL}/domain-stats`),
           axios.get(`${API_URL}/url-history`),
           axios.get(`${API_URL}/top-urls`),
           axios.get(`${API_URL}/date-analytics`),
@@ -70,7 +67,6 @@ const Statistics = () => {
         
         setStats(statsResponse.data);
         setTrends(trendsResponse.data);
-        setDomainStats(domainStatsResponse.data);
         setUrlHistory(urlHistoryResponse.data);
         setTopUrls(topUrlsResponse.data);
         setDateAnalytics(dateAnalyticsResponse.data);

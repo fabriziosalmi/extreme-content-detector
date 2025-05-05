@@ -1,18 +1,21 @@
 """
 Enhanced analysis module for identifying indicators of fascist rhetoric in text.
-Includes multiple analysis methods and configurable thresholds.
+Includes multiple analysis methods, caching, and configurable thresholds.
 """
 import json
 import re
 import os
 import datetime
+import hashlib
+import urllib.parse
+import time
 from typing import Dict, List, Optional, Any, Tuple, Set
 import requests
 from bs4 import BeautifulSoup
 import nltk
 from nltk.tokenize import sent_tokenize, word_tokenize
-import hashlib
-import urllib.parse  # For URL domain extraction
+from collections import defaultdict
+import pickle
 
 # Download necessary NLTK data
 try:
@@ -20,8 +23,159 @@ try:
 except LookupError:
     nltk.download('punkt')
 
-# Create logs directory if it doesn't exist
+# Create necessary directories
 os.makedirs('logs', exist_ok=True)
+os.makedirs('cache', exist_ok=True)
+
+class ContentCache:
+    """Cache for storing analyzed content to avoid reprocessing."""
+    
+    def __init__(self, cache_dir: str = "cache", max_age_days: int = 7):
+        """
+        Initialize the cache.
+        
+        Args:
+            cache_dir: Directory to store cache files
+            max_age_days: Maximum age of cache entries in days
+        """
+        self.cache_dir = cache_dir
+        self.max_age_seconds = max_age_days * 24 * 60 * 60
+        self.url_cache = {}
+        self.text_cache = {}
+        self._load_cache()
+        
+    def _load_cache(self):
+        """Load existing cache from disk."""
+        try:
+            cache_file = os.path.join(self.cache_dir, "url_cache.pkl")
+            if os.path.exists(cache_file):
+                with open(cache_file, 'rb') as f:
+                    self.url_cache = pickle.load(f)
+                    
+            cache_file = os.path.join(self.cache_dir, "text_cache.pkl")
+            if os.path.exists(cache_file):
+                with open(cache_file, 'rb') as f:
+                    self.text_cache = pickle.load(f)
+                    
+            # Clean old cache entries
+            self._clean_cache()
+        except Exception as e:
+            print(f"Error loading cache: {e}")
+            self.url_cache = {}
+            self.text_cache = {}
+    
+    def _save_cache(self):
+        """Save cache to disk."""
+        try:
+            cache_file = os.path.join(self.cache_dir, "url_cache.pkl")
+            with open(cache_file, 'wb') as f:
+                pickle.dump(self.url_cache, f)
+                
+            cache_file = os.path.join(self.cache_dir, "text_cache.pkl")
+            with open(cache_file, 'wb') as f:
+                pickle.dump(self.text_cache, f)
+        except Exception as e:
+            print(f"Error saving cache: {e}")
+    
+    def _clean_cache(self):
+        """Remove old cache entries."""
+        now = time.time()
+        
+        # Clean URL cache
+        to_remove = []
+        for url, entry in self.url_cache.items():
+            if now - entry["timestamp"] > self.max_age_seconds:
+                to_remove.append(url)
+        
+        for url in to_remove:
+            del self.url_cache[url]
+            
+        # Clean text cache
+        to_remove = []
+        for text_hash, entry in self.text_cache.items():
+            if now - entry["timestamp"] > self.max_age_seconds:
+                to_remove.append(text_hash)
+                
+        for text_hash in to_remove:
+            del self.text_cache[text_hash]
+    
+    def get_url_content(self, url: str) -> Optional[Dict]:
+        """
+        Get cached content for a URL.
+        
+        Args:
+            url: The URL to retrieve from cache
+            
+        Returns:
+            Cached content or None if not found/expired
+        """
+        if url in self.url_cache:
+            entry = self.url_cache[url]
+            now = time.time()
+            
+            # Check if entry is still valid
+            if now - entry["timestamp"] <= self.max_age_seconds:
+                print(f"Cache hit for URL: {url}")
+                return entry["content"]
+                
+        return None
+    
+    def set_url_content(self, url: str, content: str, results: Dict[str, Any] = None):
+        """
+        Cache content for a URL.
+        
+        Args:
+            url: The URL to cache
+            content: The scraped text content
+            results: Optional analysis results
+        """
+        self.url_cache[url] = {
+            "timestamp": time.time(),
+            "content": {
+                "text": content,
+                "results": results
+            }
+        }
+        self._save_cache()
+    
+    def get_text_analysis(self, text: str) -> Optional[Dict]:
+        """
+        Get cached analysis for text.
+        
+        Args:
+            text: The text to retrieve analysis for
+            
+        Returns:
+            Cached analysis or None if not found/expired
+        """
+        text_hash = hashlib.md5(text.encode()).hexdigest()
+        
+        if text_hash in self.text_cache:
+            entry = self.text_cache[text_hash]
+            now = time.time()
+            
+            # Check if entry is still valid
+            if now - entry["timestamp"] <= self.max_age_seconds:
+                print(f"Cache hit for text hash: {text_hash}")
+                return entry["results"]
+                
+        return None
+    
+    def set_text_analysis(self, text: str, results: Dict[str, Any]):
+        """
+        Cache analysis results for text.
+        
+        Args:
+            text: The analyzed text
+            results: The analysis results
+        """
+        text_hash = hashlib.md5(text.encode()).hexdigest()
+        
+        self.text_cache[text_hash] = {
+            "timestamp": time.time(),
+            "results": results
+        }
+        self._save_cache()
 
 class TextAnalyzer:
     """Enhanced class responsible for analyzing text for indicators of fascist rhetoric."""
@@ -43,9 +197,11 @@ class TextAnalyzer:
             "analyzed_domains": {},  # Track domains that have been analyzed
             "analysis_by_date": {},  # Track analyses by date
             "recent_urls": [],       # Store recent analyzed URLs
-            "most_indicative_urls": []  # URLs with highest indicator counts
+            "most_indicative_urls": [],  # URLs with highest indicator counts
+            "cache_stats": {"hits": 0, "misses": 0}  # Track cache performance
         }
         self._load_stats()
+        self.cache = ContentCache()
         
     def _load_indicators(self, file_path: str) -> List[Dict[str, Any]]:
         """
@@ -87,7 +243,7 @@ class TextAnalyzer:
         except Exception:
             return "unknown_domain"
     
-    def _update_stats(self, results: Dict[str, Any], input_type: str, url: Optional[str] = None):
+    def _update_stats(self, results: Dict[str, Any], input_type: str, url: Optional[str] = None, cache_hit: bool = False):
         """
         Update statistics about analyses.
         
@@ -95,7 +251,18 @@ class TextAnalyzer:
             results: The analysis results
             input_type: "text" or "url"
             url: Optional URL if input_type is "url"
+            cache_hit: Whether the result came from cache
         """
+        # Ensure cache_stats exists in the dictionary
+        if "cache_stats" not in self.analysis_stats:
+            self.analysis_stats["cache_stats"] = {"hits": 0, "misses": 0}
+        
+        # Update cache stats
+        if cache_hit:
+            self.analysis_stats["cache_stats"]["hits"] += 1
+        else:
+            self.analysis_stats["cache_stats"]["misses"] += 1
+            
         # Update total analyses count
         self.analysis_stats["total_analyses"] += 1
         
@@ -248,6 +415,12 @@ class TextAnalyzer:
         Returns:
             Extracted text or None if failed.
         """
+        # Check cache first
+        cached_content = self.cache.get_url_content(url)
+        if cached_content:
+            return cached_content["text"]
+            
+        # If not in cache, fetch from web
         try:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -272,6 +445,9 @@ class TextAnalyzer:
             
             # Clean up text (remove multiple spaces, newlines)
             text = re.sub(r'\s+', ' ', text).strip()
+            
+            # Cache the result
+            self.cache.set_url_content(url, text)
             
             return text
         except Exception as e:
@@ -714,6 +890,257 @@ class TextAnalyzer:
         
         return enhanced_results
     
+    def _sentiment_analysis(self, 
+                           text: str, 
+                           sentences: List[str], 
+                           indicator_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Basic sentiment analysis to detect emotional tone.
+        
+        Args:
+            text: The preprocessed text
+            sentences: List of sentences
+            indicator_results: Initial results from keyword matching
+            
+        Returns:
+            Enhanced indicator results with sentiment data
+        """
+        # Simple approach using polarity lexicons
+        positive_words = {
+            "buono", "grande", "migliore", "positivo", "ottimo", "eccellente", "giusto", 
+            "perfetto", "bene", "forte", "vero", "superiore", "glorioso", "felice", "meraviglioso"
+        }
+        
+        negative_words = {
+            "cattivo", "terribile", "peggiore", "negativo", "pessimo", "orribile", "sbagliato", 
+            "difettoso", "male", "debole", "falso", "inferiore", "triste", "tragico", "pericoloso"
+        }
+        
+        threat_words = {
+            "minaccia", "pericolo", "rischio", "attacco", "difesa", "protezione", "invasione", 
+            "nemico", "traditore", "combattere", "guerra", "battaglia", "lotta", "crisi", "emergenza"
+        }
+        
+        # Calculate sentiment scores
+        words_lower = [w.lower() for w in text.split()]
+        
+        positive_score = sum(1 for w in words_lower if w in positive_words)
+        negative_score = sum(1 for w in words_lower if w in negative_words)
+        threat_score = sum(1 for w in words_lower if w in threat_words)
+        
+        # Calculate total sentiment
+        total_sentiment = positive_score - negative_score
+        normalized_sentiment = total_sentiment / len(words_lower) if words_lower else 0
+        
+        # Enhance existing results with sentiment data
+        enhanced_results = []
+        
+        for indicator in indicator_results:
+            indicator_with_sentiment = indicator.copy()
+            
+            # Add sentiment data
+            indicator_with_sentiment["sentiment_data"] = {
+                "positive_score": positive_score,
+                "negative_score": negative_score,
+                "threat_score": threat_score,
+                "total_sentiment": total_sentiment,
+                "normalized_sentiment": normalized_sentiment
+            }
+            
+            # Adjust overall strength based on threat score
+            if threat_score > 5 and threat_score / len(words_lower) > 0.02:  # More than 2% threat words
+                if indicator_with_sentiment["overall_strength"] != "high":
+                    indicator_with_sentiment["overall_strength"] = "high"
+            
+            enhanced_results.append(indicator_with_sentiment)
+        
+        return enhanced_results
+    
+    def _noun_phrase_analysis(self, 
+                             text: str, 
+                             sentences: List[str], 
+                             indicator_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Simple noun phrase analysis to detect ideological patterns.
+        
+        Args:
+            text: The preprocessed text
+            sentences: List of sentences
+            indicator_results: Initial results from keyword matching
+            
+        Returns:
+            Enhanced indicator results with noun phrase patterns
+        """
+        # Defining ideological patterns (common noun phrases)
+        nationalist_phrases = [
+            r'(nostr[oa] (popolo|nazione|patria|paese|terra|cultura|tradizione|identità))',
+            r'(grand[ei] (italia|nazione|patria|paese|popolo))',
+            r'(vera (italia|nazione|patria|identità))',
+            r'(difesa (nazionale|della patria|dell\'italia|dei confini))',
+            r'(italia agli italiani)',
+            r'(italiani (prima|veri))'
+        ]
+        
+        anti_democratic_phrases = [
+            r'((falsa|finta) democrazia)', 
+            r'(governo (forte|autoritario|deciso))',
+            r'(mano (dura|ferma|forte))',
+            r'(leadership (forte|decisa))',
+            r'(parlamento (corrotto|inutile|inefficace))',
+            r'(classe politica (corrotta|venduta|traditrice))'
+        ]
+        
+        enemy_phrases = [
+            r'((loro|questi) vogliono (distruggere|eliminare|cancellare))',
+            r'(nemici (interni|esterni|dell\'italia|della patria|del popolo))',
+            r'(traditori (della patria|dell\'italia|del popolo))',
+            r'(poteri (forti|occulti|globali))',
+            r'(complotto (internazionale|mondiale|globale))',
+            r'(piano (di sostituzione|per (distruggere|eliminare)))'
+        ]
+        
+        # Find matches in the text
+        nationalist_matches = []
+        for pattern in nationalist_phrases:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                nationalist_matches.append(match.group(0))
+        
+        anti_democratic_matches = []
+        for pattern in anti_democratic_phrases:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                anti_democratic_matches.append(match.group(0))
+        
+        enemy_matches = []
+        for pattern in enemy_phrases:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                enemy_matches.append(match.group(0))
+        
+        # Group all matches
+        all_phrase_matches = {
+            "nationalist_phrases": nationalist_matches,
+            "anti_democratic_phrases": anti_democratic_matches,
+            "enemy_phrases": enemy_matches
+        }
+        
+        # Enhance existing results
+        enhanced_results = []
+        
+        for indicator in indicator_results:
+            indicator_with_phrases = indicator.copy()
+            
+            # Add phrase matches data
+            indicator_with_phrases["noun_phrase_matches"] = {
+                k: v[:3] for k, v in all_phrase_matches.items() if v  # Limit to 3 examples per category
+            }
+            
+            # Adjust overall strength based on phrase matches
+            total_phrases = sum(len(v) for v in all_phrase_matches.values())
+            if total_phrases >= 5:
+                if indicator_with_phrases["overall_strength"] != "high":
+                    indicator_with_phrases["overall_strength"] = "high"
+            elif total_phrases >= 2:
+                if indicator_with_phrases["overall_strength"] == "low":
+                    indicator_with_phrases["overall_strength"] = "medium"
+            
+            enhanced_results.append(indicator_with_phrases)
+        
+        return enhanced_results
+    
+    def _propaganda_technique_analysis(self, 
+                                      text: str, 
+                                      sentences: List[str], 
+                                      indicator_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Analyze for common propaganda techniques.
+        
+        Args:
+            text: The preprocessed text
+            sentences: List of sentences
+            indicator_results: Initial results from keyword matching
+            
+        Returns:
+            Enhanced indicator results with propaganda technique detection
+        """
+        # Define propaganda techniques patterns
+        techniques = {
+            "bandwagon": [
+                r'tutt[ie] (sanno|pensano|credono|sono d\'accordo)',
+                r'(la maggioranza|la gente|gli italiani) (vuole|pensa|crede|sa)',
+                r'(è ormai|è diventato) (evidente|chiaro|ovvio) (a tutti|per tutti)'
+            ],
+            "black_and_white": [
+                r'(o con noi o contro di noi)',
+                r'(amico o nemico)',
+                r'(patriot[ai] o traditor[ei])',
+                r'(o si è|o sei) (italian[oi]|patriot[ai]) o',
+                r'non ci sono vie di mezzo',
+                r'(senza|non esistono) mezze misure'
+            ],
+            "appeal_to_fear": [
+                r'(se non|se continuiamo) (agiamo|facciamo|interveniamo) (sarà|potrebbe essere|diventerà) (troppo tardi|la fine)',
+                r'(rischiamo|siamo a rischio di) (estinzione|sostituzione|distruzione|fine)',
+                r'(la nostra (civiltà|cultura|nazione|società)) (è in pericolo|rischia di scomparire)',
+                r'(stanno cercando di|vogliono|il loro piano è) (distrugg|elimin|cancell)are'
+            ],
+            "glittering_generalities": [
+                r'(vero|autentico|puro) (italiano|patriota|cittadino)',
+                r'(valori|principi|tradizioni) (veri|autentici|puri)',
+                r'(vera|autentica|pura) (libertà|giustizia|democrazia)',
+                r'(onore|gloria|dignità|orgoglio) (nazionale|patrio|italiano)'
+            ],
+            "name_calling": [
+                r'(traditor[ei]|vendut[oi]|corrot[oi]|nemici|buonist[ai])',
+                r'(radical chic|zeccch[ei]|comunist[ai]|fascist[ai]|nazis[ai]|teppist[ai])',
+                r'(sciacall[ai]|opportunist[ai]|profitator[ai]|parassit[ai])',
+                r'(invasor[ei]|illegali|clandestini|criminali)'
+            ]
+        }
+        
+        # Find matches for each technique
+        technique_matches = {}
+        for technique, patterns in techniques.items():
+            matches = []
+            for pattern in patterns:
+                for match in re.finditer(pattern, text, re.IGNORECASE):
+                    matches.append(match.group(0))
+            if matches:
+                technique_matches[technique] = matches
+        
+        # Calculate propaganda score
+        total_techniques = len(technique_matches)
+        total_instances = sum(len(matches) for matches in technique_matches.values())
+        
+        # Enhance existing results
+        enhanced_results = []
+        
+        for indicator in indicator_results:
+            indicator_with_propaganda = indicator.copy()
+            
+            # Add propaganda data
+            indicator_with_propaganda["propaganda_techniques"] = {
+                technique: matches[:3] for technique, matches in technique_matches.items()  # Limit to 3 examples per technique
+            }
+            
+            indicator_with_propaganda["propaganda_score"] = {
+                "total_techniques": total_techniques,
+                "total_instances": total_instances
+            }
+            
+            # Adjust overall strength based on propaganda score
+            if total_techniques >= 3 or total_instances >= 5:
+                if indicator_with_propaganda["overall_strength"] != "high":
+                    indicator_with_propaganda["overall_strength"] = "high"
+            elif total_techniques >= 2 or total_instances >= 3:
+                if indicator_with_propaganda["overall_strength"] == "low":
+                    indicator_with_propaganda["overall_strength"] = "medium"
+            
+            enhanced_results.append(indicator_with_propaganda)
+        
+        return enhanced_results
+    
     def analyze_text(self, text: str, settings: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Analyze text for indicators of fascist rhetoric using methods specified in settings.
@@ -728,6 +1155,11 @@ class TextAnalyzer:
         if not text:
             return {"error": "Empty text provided", "results": []}
         
+        # Check cache first for this exact text
+        cached_results = self.cache.get_text_analysis(text)
+        if cached_results:
+            return cached_results
+        
         # Default settings if none provided
         if settings is None:
             settings = {
@@ -736,7 +1168,10 @@ class TextAnalyzer:
                     "contextAnalysis": False,
                     "frequencyAnalysis": False,
                     "proximityAnalysis": False,
-                    "patternMatching": False
+                    "patternMatching": False,
+                    "sentimentAnalysis": False,
+                    "nounPhraseAnalysis": False,
+                    "propagandaTechniqueAnalysis": False
                 },
                 "thresholds": {
                     "minKeywordStrength": "low",
@@ -773,11 +1208,14 @@ class TextAnalyzer:
         
         # If no results from keyword matching and no pattern matching, return early
         if not results and not methods.get("patternMatching", False):
-            return {
+            analysis_results = {
                 "total_indicators_found": 0,
                 "results": [],
                 "analysis_methods": used_methods
             }
+            # Cache the results
+            self.cache.set_text_analysis(text, analysis_results)
+            return analysis_results
         
         # 2. Frequency analysis
         if methods.get("frequencyAnalysis", False):
@@ -801,11 +1239,31 @@ class TextAnalyzer:
             used_methods["patternMatching"] = True
             results = self._pattern_matching(preprocessed_text, sentences, results)
         
-        return {
+        # 6. Sentiment analysis (new)
+        if methods.get("sentimentAnalysis", False):
+            used_methods["sentimentAnalysis"] = True
+            results = self._sentiment_analysis(preprocessed_text, sentences, results)
+        
+        # 7. Noun phrase analysis (new)
+        if methods.get("nounPhraseAnalysis", False):
+            used_methods["nounPhraseAnalysis"] = True
+            results = self._noun_phrase_analysis(preprocessed_text, sentences, results)
+        
+        # 8. Propaganda technique analysis (new)
+        if methods.get("propagandaTechniqueAnalysis", False):
+            used_methods["propagandaTechniqueAnalysis"] = True
+            results = self._propaganda_technique_analysis(preprocessed_text, sentences, results)
+        
+        analysis_results = {
             "total_indicators_found": len(results),
             "results": results,
             "analysis_methods": used_methods
         }
+        
+        # Cache the results
+        self.cache.set_text_analysis(text, analysis_results)
+        
+        return analysis_results
     
     def analyze_input(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -824,19 +1282,44 @@ class TextAnalyzer:
         if not text and not url:
             return {"error": "No text or URL provided", "results": []}
         
-        if url:
-            scraped_text = self.fetch_text_from_url(url)
-            if not scraped_text:
-                return {"error": f"Failed to scrape content from URL: {url}", "results": []}
-            text = scraped_text
+        # Flag to track if result was from cache
+        cache_hit = False
         
-        results = self.analyze_text(text, settings)
+        if url:
+            # Check URL cache first
+            cached_url_data = self.cache.get_url_content(url)
+            
+            if cached_url_data and cached_url_data.get("results") and settings is None:
+                # If we have cached results and no custom settings, use cached results
+                cache_hit = True
+                results = cached_url_data["results"]
+            else:
+                # Either no cached results or custom settings
+                scraped_text = self.fetch_text_from_url(url)
+                if not scraped_text:
+                    return {"error": f"Failed to scrape content from URL: {url}", "results": []}
+                text = scraped_text
+                results = self.analyze_text(text, settings)
+                
+                # Cache the results along with content
+                self.cache.set_url_content(url, text, results)
+        else:
+            # Check text cache
+            cached_results = self.cache.get_text_analysis(text)
+            
+            if cached_results and settings is None:
+                # If we have cached results and no custom settings, use cached results
+                cache_hit = True
+                results = cached_results
+            else:
+                # Either no cached results or custom settings
+                results = self.analyze_text(text, settings)
         
         # Log the analysis
         input_type = "url" if url else "text"
         self._log_analysis(text, results, settings, input_type, url if url else None)
         
         # Update stats
-        self._update_stats(results, input_type, url if url else None)
+        self._update_stats(results, input_type, url if url else None, cache_hit)
         
         return results
