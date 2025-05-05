@@ -20,6 +20,7 @@ Una web application per analizzare URL e identificare la presenza di indicatori,
 - API documentata con Swagger UI
 - Analisi multi-metodo personalizzabile
 - Navigazione fluida con auto-scroll ai risultati
+- Supporto Docker per facile deployment
 
 ## Limitazioni Importanti
 
@@ -118,7 +119,28 @@ Questo strumento:
 
 ## Installazione
 
-### Backend
+### Usando Docker (Raccomandato)
+
+La modalità più semplice per avviare l'applicazione è usare Docker Compose:
+
+1. Assicurati di avere Docker e Docker Compose installati sul tuo sistema
+2. Clona il repository e naviga nella directory principale
+3. Esegui:
+   ```
+   docker-compose up -d
+   ```
+4. Attendi che i container vengano costruiti e avviati
+5. Accedi all'applicazione all'indirizzo `http://localhost:3000`
+6. L'API sarà disponibile all'indirizzo `http://localhost:8000`
+
+Per fermare l'applicazione:
+```
+docker-compose down
+```
+
+### Installazione Manuale (Alternativa)
+
+#### Backend
 
 1. Navigare nella directory del backend:
    ```
@@ -142,7 +164,7 @@ Questo strumento:
    python -c "import nltk; nltk.download('punkt')"
    ```
 
-### Frontend
+#### Frontend
 
 1. Navigare nella directory del frontend:
    ```
