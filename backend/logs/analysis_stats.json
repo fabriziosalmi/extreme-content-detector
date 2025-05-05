@@ -1,0 +1,65 @@
+{
+  "total_analyses": 1,
+  "indicators_found": {
+    "specific_symbolism": 1
+  },
+  "top_keywords": {
+    "saluto romano": {
+      "count": 1,
+      "strength": "high",
+      "indicator_id": "specific_symbolism"
+    },
+    "presente": {
+      "count": 1,
+      "strength": "medium",
+      "indicator_id": "specific_symbolism"
+    }
+  },
+  "analysis_methods_used": {
+    "keywordMatching": 1,
+    "frequencyAnalysis": 1,
+    "proximityAnalysis": 1,
+    "contextAnalysis": 1,
+    "patternMatching": 1
+  },
+  "source_types": {
+    "text": 0,
+    "url": 1
+  },
+  "analyzed_domains": {
+    "editorialedomani.it": {
+      "count": 1,
+      "total_indicators": 1,
+      "last_analyzed": "2025-05-05"
+    }
+  },
+  "analysis_by_date": {
+    "2025-05-05": {
+      "count": 1,
+      "indicators_found": 1,
+      "by_source": {
+        "text": 0,
+        "url": 1
+      }
+    }
+  },
+  "recent_urls": [
+    {
+      "url": "https://www.editorialedomani.it/fatti/saluti-romani-ad-acca-larenzia-chiesto-il-processo-per-31-militanti-di-casapound-yqtx2yr5",
+      "domain": "editorialedomani.it",
+      "date": "2025-05-05",
+      "indicators_count": 1
+    }
+  ],
+  "most_indicative_urls": [
+    {
+      "url": "https://www.editorialedomani.it/fatti/saluti-romani-ad-acca-larenzia-chiesto-il-processo-per-31-militanti-di-casapound-yqtx2yr5",
+      "domain": "editorialedomani.it",
+      "date": "2025-05-05",
+      "indicators_count": 1,
+      "indicators": [
+        "specific_symbolism"
+      ]
+    }
+  ]
+}
