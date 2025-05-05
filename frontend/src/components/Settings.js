@@ -3,7 +3,9 @@ import axios from 'axios';
 
 const Settings = ({ settings, updateSettings }) => {
   const [localSettings, setLocalSettings] = useState(settings);
+  // eslint-disable-next-line no-unused-vars
   const [allIndicators, setAllIndicators] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
