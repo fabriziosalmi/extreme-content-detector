@@ -1,18 +1,19 @@
 # AntiFa Model
 
-Una web application per analizzare testi e URL per identificare la presenza di indicatori, temi e retoriche comunemente associati a ideologie estremiste.
+Una web application per analizzare URL e identificare la presenza di indicatori, temi e retoriche comunemente associati a ideologie estremiste.
 
 ## Caratteristiche
 
-- Analisi di testo diretto o URL
+- Analisi di contenuto da URL con interfaccia intuitiva
 - Scraping di contenuto testuale da URL
 - Identificazione di indicatori retorici basati su parole chiave e frasi
 - Valutazione della forza/rilevanza degli indicatori trovati
-- Interfaccia utente moderna e intuitiva
+- Interfaccia utente moderna con design responsivo
 - Visualizzazioni statistiche e grafici di tendenza
 - Registrazione e storico delle analisi
 - API documentata con Swagger UI
 - Analisi multi-metodo personalizzabile
+- Navigazione fluida con auto-scroll ai risultati
 
 ## Limitazioni Importanti
 
@@ -31,27 +32,49 @@ Questo strumento:
 │   ├── app.py             # API FastAPI con Swagger docs
 │   ├── analysis.py        # Logica di analisi testuale
 │   ├── indicators.json    # Definizione degli indicatori
+│   ├── websocket_server.py # Supporto per WebSocket 
+│   ├── cache/             # Cache per risultati analisi
 │   ├── logs/              # Directory per i file di log JSON
 │   └── requirements.txt   # Dipendenze Python
 └── frontend/
     ├── package.json       # Configurazione React/npm
     ├── public/            # Asset statici
+    │   ├── antifa.png     # Logo applicazione
+    │   └── favicon.ico    # Icona browser
     ├── src/
     │   ├── App.js         # Componente principale React
-    │   ├── App.css        # Stili CSS/Tailwind
+    │   ├── App.css        # Stili CSS
     │   ├── index.js       # Entry point
-    │   └── components/    # Componenti React
-    │       ├── AnalysisForm.js    # Form di input
-    │       ├── Disclaimer.js      # Disclaimer legale
-    │       ├── Footer.js          # Footer
-    │       ├── Header.js          # Header con navigazione 
-    │       ├── ResultsDisplay.js  # Visualizzazione risultati
-    │       ├── Settings.js        # Configurazione analisi
-    │       └── Statistics.js      # Dashboard statistiche
+    │   ├── assets/        # Asset grafici
+    │   │   └── logo.png   # Logo dell'applicazione
+    │   ├── components/    # Componenti React
+    │   │   ├── AnalysisForm.js      # Form per analisi URL
+    │   │   ├── AdvancedAnalysisForm.js # Form con opzioni avanzate
+    │   │   ├── ComparativeResultsDisplay.js # Visualizzazione analisi comparative
+    │   │   ├── Disclaimer.js        # Disclaimer legale con UI collassabile
+    │   │   ├── Footer.js            # Footer con link a repository
+    │   │   ├── Header.js            # Header dell'applicazione
+    │   │   ├── NavBar.js            # Barra di navigazione principale
+    │   │   ├── ResultsDisplay.js    # Visualizzazione risultati
+    │   │   ├── Settings.js          # Configurazione analisi
+    │   │   └── Statistics.js        # Dashboard statistiche
+    │   ├── pages/         # Pagine dell'applicazione
+    │   │   ├── AboutPage.js         # Pagina informazioni
+    │   │   └── StatsPage.js         # Pagina statistiche
+    │   └── utils/
+    │       └── apiUtils.js          # Utilità per chiamate API
     └── tailwind.config.js # Configurazione Tailwind CSS
 ```
 
 ## Nuove Funzionalità
+
+### UI/UX Migliorato
+- Design responsivo per dispositivi mobili e desktop
+- Logo con maschera circolare per un aspetto più moderno
+- Navigazione semplificata con barra superiore unificata
+- Auto-scroll ai risultati di analisi
+- Form di analisi ottimizzato per URL
+- Impostazioni avanzate collassabili per un'interfaccia più pulita
 
 ### Dashboard Statistiche
 - Visualizzazione grafica di tendenze e risultati
@@ -59,6 +82,11 @@ Questo strumento:
 - Grafici a barre per efficacia dei metodi
 - Grafici lineari per evoluzione nel tempo
 - Visualizzazione delle parole chiave più frequenti
+
+### Sistema di Caching
+- Cache per risultati di analisi URL
+- Miglioramento delle performance per URL analizzati frequentemente
+- Indicatore di stato di cache nell'interfaccia
 
 ### Sistema di Logging
 - Salvataggio automatico di tutte le analisi
@@ -70,7 +98,7 @@ Questo strumento:
 - Interfaccia Swagger UI completa all'indirizzo `/docs`
 - Documentazione alternativa in ReDoc all'indirizzo `/redoc`
 - Specifiche OpenAPI dettagliate
-- Esempi di richieste API
+- Supporto esclusivo per analisi URL
 
 ## Requisiti
 
@@ -144,26 +172,35 @@ Questo strumento:
 ## Utilizzo
 
 1. Apri l'interfaccia web all'indirizzo `http://localhost:3000`
-2. Scegli se vuoi analizzare un testo diretto o un URL
-3. Inserisci il testo o l'URL
-4. Clicca su "Analizza"
-5. Attendi l'elaborazione e visualizza i risultati
-6. Esplora le statistiche cliccando sul pulsante "Statistiche" nell'header
-7. Personalizza le impostazioni di analisi tramite il pulsante "Impostazioni"
+2. Inserisci l'URL da analizzare nel campo di input
+3. Opzionalmente, espandi le "Impostazioni avanzate" per personalizzare l'analisi
+4. Clicca su "Analizza URL"
+5. L'interfaccia scorrerà automaticamente ai risultati una volta pronti
+6. Esplora le statistiche cliccando sul pulsante nell'header
+7. Personalizza le impostazioni di analisi tramite il menù di configurazione
 
 ## Endpoint API
 
 L'API offre i seguenti endpoint principali:
 
-- `POST /analyze` - Analizza un testo o un URL
+- `POST /analyze` - Analizza un URL
+- `POST /analyze-comparison` - Confronta due URL
 - `GET /indicators` - Ottieni l'elenco degli indicatori disponibili
 - `GET /stats` - Ottieni statistiche sulle analisi effettuate
 - `GET /logs` - Ottieni i log delle analisi precedenti
 - `GET /trends` - Ottieni dati di tendenza per grafici
+- `GET /domain-stats` - Ottieni statistiche sui domini analizzati
+- `GET /url-history` - Ottieni cronologia URL analizzati
+- `GET /top-urls` - Ottieni URL con maggior numero di indicatori
+- `GET /date-analytics` - Ottieni analisi per data
+- `GET /web-coverage` - Ottieni statistiche sulla copertura web
+- `GET /export-analysis/{format}` - Esporta dati di analisi in diversi formati
 
 Per una documentazione completa, consultare l'interfaccia Swagger all'indirizzo `http://localhost:8000/docs`.
 
 ## Contribuire
+
+Il repository ufficiale è disponibile su GitHub: [https://github.com/fabriziosalmi/antifa-model](https://github.com/fabriziosalmi/antifa-model)
 
 Puoi contribuire al progetto in diversi modi:
 

@@ -168,7 +168,7 @@ function App() {
       <CssBaseline />
       <Router>
         <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-          <NavBar />
+          <NavBar toggleSettings={toggleSettings} toggleStatistics={toggleStatistics} />
           <Container maxWidth="lg" sx={{ flex: 1, py: 4 }}>
             <Routes>
               <Route path="/" element={

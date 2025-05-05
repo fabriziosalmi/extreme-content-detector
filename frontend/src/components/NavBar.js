@@ -20,7 +20,7 @@ try {
   logo = null;
 }
 
-const NavBar = ({ toggleSettings }) => {
+const NavBar = ({ toggleSettings, toggleStatistics }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const location = useLocation();
@@ -71,9 +71,19 @@ const NavBar = ({ toggleSettings }) => {
       </Button>
       <IconButton 
         color="inherit" 
+        onClick={toggleStatistics}
+        sx={{ ml: 1, mr: 1 }}
+        aria-label="Visualizza Statistiche"
+        title="Visualizza Statistiche"
+      >
+        <StatsIcon />
+      </IconButton>
+      <IconButton 
+        color="inherit" 
         onClick={toggleSettings}
         sx={{ ml: 1 }}
         aria-label="Impostazioni"
+        title="Impostazioni"
       >
         <SettingsIcon />
       </IconButton>
@@ -93,6 +103,17 @@ const NavBar = ({ toggleSettings }) => {
         to="/" 
         onClick={handleMenuClose}
         sx={{ 
+          color: isCurrentPath('/') ? theme.palette.secondary.main : 'inherit'
+        }}
+      >
+        <AnalyzeIcon sx={{ mr: 1 }} /> Analizza
+      </MenuItem>
+      <MenuItem 
+        component={Link} 
+        to="/stats" 
+        onClick={handleMenuClose}
+        sx={{ 
+          color: isCurrentPath('/stats') ? theme.palette.secondary.main : 'inherit'
         }}
       >
         <StatsIcon sx={{ mr: 1 }} /> Statistiche
@@ -107,6 +128,12 @@ const NavBar = ({ toggleSettings }) => {
       >
         <InfoIcon sx={{ mr: 1 }} /> Informazioni
       </MenuItem>
+      <MenuItem onClick={() => { handleMenuClose(); toggleStatistics(); }}>
+        <StatsIcon sx={{ mr: 1 }} /> Visualizza Statistiche
+      </MenuItem>
+      <MenuItem onClick={() => { handleMenuClose(); toggleSettings(); }}>
+        <SettingsIcon sx={{ mr: 1 }} /> Impostazioni
+      </MenuItem>
     </Menu>
   );
   
@@ -116,12 +143,56 @@ const NavBar = ({ toggleSettings }) => {
         {/* Logo and Title */}
         <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: isMobile ? 1 : 0 }}>
           {logo ? (
-            <img src={logo} alt="AntiFa Model Logo" height="72" width="72" style={{ marginRight: '10px' }} />
+            <Avatar 
+              src={logo} 
+              alt="AntiFa Model Logo" 
+              sx={{ 
+                width: 48, 
+                height: 48, 
+                mr: 1.5,
+                boxShadow: '0 0 8px rgba(0,0,0,0.2)'
+              }} 
+            />
           ) : (
-            <AnalyzeIcon sx={{ mr: 1, fontSize: 32 }} />
+            <Avatar 
+              sx={{ 
+                bgcolor: theme.palette.secondary.main, 
+                width: 48, 
+                height: 48, 
+                mr: 1.5,
+                boxShadow: '0 0 8px rgba(0,0,0,0.2)'
+              }}
+            >
+              <AnalyzeIcon />
+            </Avatar>
           )}
-          <Typography variant="h6" component="div" sx={{ display: { xs: 'none', sm: 'block' } }}>
+          <Typography 
+            variant="h6" 
+            component={Link} 
+            to="/"
+            sx={{ 
+              display: { xs: 'none', sm: 'block' },
+              textDecoration: 'none',
+              color: 'white',
+              fontWeight: 'bold',
+              letterSpacing: '0.5px'
+            }}
+          >
             AntiFa Model
+            <Typography 
+              variant="caption" 
+              component="span" 
+              sx={{ 
+                ml: 1, 
+                bgcolor: 'rgba(255,255,255,0.2)', 
+                px: 0.8, 
+                py: 0.2, 
+                borderRadius: '4px',
+                fontWeight: 'bold'
+              }}
+            >
+              v1.0 Beta
+            </Typography>
           </Typography>
         </Box>
         
@@ -139,7 +210,7 @@ const NavBar = ({ toggleSettings }) => {
             {mobileMenu}
           </>
         ) : (
-          <Box sx={{ ml: 4 }}>
+          <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
             {navLinks}
           </Box>
         )}

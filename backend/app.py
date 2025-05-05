@@ -85,15 +85,13 @@ class AnalysisSettings(BaseModel):
 
 class AnalysisInput(BaseModel):
     """Model for the analysis input data."""
-    text: Optional[str] = Field(None, description="Testo da analizzare")
-    url: Optional[str] = Field(None, description="URL da cui estrarre e analizzare il testo")
+    url: str = Field(..., description="URL da cui estrarre e analizzare il testo")
     settings: Optional[AnalysisSettings] = Field(None, description="Impostazioni di analisi personalizzate")
     
     model_config = {
         "json_schema_extra": {
             "example": {
-                "text": "L'Italia deve tornare alla sua antica grandezza con un uomo forte al comando.",
-                "url": None,
+                "url": "https://esempio.it/articolo",
                 "settings": {
                     "methods": {
                         "keywordMatching": True,
@@ -119,20 +117,15 @@ class LogParameters(BaseModel):
     skip: int = Field(0, description="Numero di log da saltare (per la paginazione)")
 
 class AnalysisRequest(BaseModel):
-    text: Optional[str] = None
-    url: Optional[str] = None
+    url: str = Field(..., description="URL da analizzare")
     settings: Optional[dict] = None
 
     model_config = {
-        "json_schema_extra": { # Renamed from schema_extra
+        "json_schema_extra": {
             "examples": [
                 {
-                    "text": "Questo è un testo di esempio contenente parole chiave come rivoluzione e resistenza.",
-                    "settings": {"keywordMatching": True, "contextAnalysis": False}
-                },
-                {
-                    "url": "http://example.com/article",
-                    "settings": {"sentimentAnalysis": True}
+                    "url": "https://esempio.it/articolo",
+                    "settings": {"keywordMatching": True, "contextAnalysis": True, "frequencyAnalysis": True}
                 }
             ]
         }
@@ -161,24 +154,24 @@ async def root():
 
 @app.post("/analyze", 
     response_model_exclude_none=True,
-    summary="Analizza testo o URL",
-    description="Analizza un testo o il contenuto di un URL per identificare indicatori retorici specifici",
+    summary="Analizza URL",
+    description="Analizza il contenuto di un URL per identificare indicatori retorici specifici",
     response_description="Risultati dell'analisi con indicatori trovati",
     tags=["Analisi"])
 async def analyze_text(input_data: AnalysisInput):
     """
-    Analyze text or URL content for indicators of fascist rhetoric.
+    Analyze URL content for indicators of fascist rhetoric.
     
     Args:
-        input_data: Contains text or URL to analyze and optional settings.
+        input_data: Contains URL to analyze and optional settings.
         
     Returns:
         Analysis results with indicators found.
     """
-    print(f"Received analysis request: text length={len(input_data.text or '')} url={input_data.url or 'None'}")
+    print(f"Received analysis request: url={input_data.url}")
     
-    if not input_data.text and not input_data.url:
-        raise HTTPException(status_code=400, detail="Either text or URL must be provided")
+    if not input_data.url:
+        raise HTTPException(status_code=400, detail="URL must be provided")
     
     # Convert Pydantic model to dict for the analyzer
     input_dict = input_data.model_dump(exclude_none=True)
@@ -664,15 +657,15 @@ def custom_openapi():
         title="AntiFa Model API Documentation",
         version="1.0.0",
         description="""
-        API per l'analisi di testi alla ricerca di indicatori retorici.
+        API per l'analisi di URL alla ricerca di indicatori retorici.
         
         Questa API permette di:
-        * Analizzare un testo diretto o estratto da un URL
+        * Analizzare contenuti estratti da URL
         * Accedere al dizionario di indicatori retorici
         * Visualizzare statistiche e log delle analisi passate
         * Ottenere dati di tendenza per visualizzazioni grafiche
         
-        Per ulteriori informazioni, visitare la [repository GitHub](https://github.com/fab/antifa-model)
+        Per ulteriori informazioni, visitare la [repository GitHub](https://github.com/fabriziosalmi/antifa-model)
         """,
         routes=app.routes,
     )
@@ -684,7 +677,6 @@ def custom_openapi():
                 "title": "AnalysisInput",
                 "type": "object",
                 "properties": {
-                    "text": {"title": "Text", "type": "string", "description": "Testo da analizzare"},
                     "url": {"title": "URL", "type": "string", "description": "URL da cui estrarre e analizzare il testo"},
                     "settings": {
                         "title": "Settings",
@@ -692,6 +684,7 @@ def custom_openapi():
                         "description": "Impostazioni di analisi personalizzate"
                     }
                 },
+                "required": ["url"],
                 "description": "Dati di input per l'analisi"
             }
         }
@@ -701,7 +694,7 @@ def custom_openapi():
     openapi_schema["tags"] = [
         {
             "name": "Analisi",
-            "description": "Endpoints per l'analisi di testi e URL"
+            "description": "Endpoints per l'analisi di URL"
         },
         {
             "name": "Dizionario",

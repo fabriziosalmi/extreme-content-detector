@@ -1,18 +1,18 @@
 {
   "id": "a659f8e4cadd2ac4aafa62486044743e",
-  "timestamp": "2025-05-05T21:38:47.659404",
+  "timestamp": "2025-05-05T22:08:16.636279",
   "input_type": "url",
   "text_length": 3324,
   "settings": {
     "methods": {
       "keywordMatching": true,
-      "contextAnalysis": true,
-      "frequencyAnalysis": true,
-      "proximityAnalysis": true,
-      "patternMatching": true,
-      "sentimentAnalysis": true,
-      "nounPhraseAnalysis": true,
-      "propagandaTechniqueAnalysis": true
+      "contextAnalysis": false,
+      "frequencyAnalysis": false,
+      "proximityAnalysis": false,
+      "patternMatching": false,
+      "sentimentAnalysis": false,
+      "nounPhraseAnalysis": false,
+      "propagandaTechniqueAnalysis": false
     },
     "thresholds": {
       "minKeywordStrength": "low",
