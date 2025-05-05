@@ -137,3 +137,47 @@ Questo strumento:
 1. Dalla directory `frontend`, avviare l'applicazione React:
    ```
    npm start
+   ```
+   
+   L'interfaccia sarà disponibile all'indirizzo `http://localhost:3000`.
+
+## Utilizzo
+
+1. Apri l'interfaccia web all'indirizzo `http://localhost:3000`
+2. Scegli se vuoi analizzare un testo diretto o un URL
+3. Inserisci il testo o l'URL
+4. Clicca su "Analizza"
+5. Attendi l'elaborazione e visualizza i risultati
+6. Esplora le statistiche cliccando sul pulsante "Statistiche" nell'header
+7. Personalizza le impostazioni di analisi tramite il pulsante "Impostazioni"
+
+## Endpoint API
+
+L'API offre i seguenti endpoint principali:
+
+- `POST /analyze` - Analizza un testo o un URL
+- `GET /indicators` - Ottieni l'elenco degli indicatori disponibili
+- `GET /stats` - Ottieni statistiche sulle analisi effettuate
+- `GET /logs` - Ottieni i log delle analisi precedenti
+- `GET /trends` - Ottieni dati di tendenza per grafici
+
+Per una documentazione completa, consultare l'interfaccia Swagger all'indirizzo `http://localhost:8000/docs`.
+
+## Contribuire
+
+Puoi contribuire al progetto in diversi modi:
+
+1. Migliorare gli indicatori in `indicators.json` con parole chiave più accurate
+2. Migliorare l'algoritmo di scraping per URL complessi
+3. Aggiungere supporto per NLP più avanzato (es. riconoscimento entità, analisi contestuale)
+4. Migliorare l'interfaccia utente
+5. Aggiungere nuove visualizzazioni alla dashboard statistiche
+6. Migliorare la gestione degli errori e la robustezza
+
+## Considerazioni Etiche
+
+Questo strumento è progettato per scopi educativi e di ricerca. Riconosce la complessità delle ideologie politiche e non pretende di fornire etichette definitive. I risultati dovrebbero sempre essere interpretati con senso critico e consapevolezza del contesto più ampio.
+
+## Licenza
+
+Questo progetto è rilasciato sotto licenza MIT.
