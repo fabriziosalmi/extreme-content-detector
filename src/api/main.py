@@ -258,6 +258,25 @@ def run_scraper(background_tasks: BackgroundTasks, db: Session = Depends(get_db)
     background_tasks.add_task(scrape_task)
     return {"status": "success", "message": "Scraper started in background"}
 
+@app.post("/run/scraper/{website_id}")
+def run_scraper_for_website(
+    website_id: int, 
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(get_db)
+):
+    """Run the scraper for a specific website in the background."""
+    # Get the website
+    db_website = db.query(Website).filter(Website.id == website_id).first()
+    if db_website is None:
+        raise HTTPException(status_code=404, detail="Website not found")
+    
+    def scrape_task():
+        scraper = WebsiteScraper(session=db)
+        scraper.scrape_website(db_website)
+    
+    background_tasks.add_task(scrape_task)
+    return {"status": "success", "message": f"Scraper started in background for website: {db_website.name}"}
+
 @app.post("/run/analyzer")
 def run_analyzer(
     background_tasks: BackgroundTasks, 

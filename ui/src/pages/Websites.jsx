@@ -149,7 +149,7 @@ const Websites = () => {
   const handleScrapeWebsite = async (websiteId) => {
     try {
       // Call API to scrape a specific website
-      await apiService.runScraper();
+      await apiService.scrapeWebsite(websiteId);
       setNotification({
         open: true,
         message: 'Scraper started for website!',

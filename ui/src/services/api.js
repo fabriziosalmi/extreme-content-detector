@@ -43,6 +43,11 @@ const apiService = {
     const response = await api.delete(`/websites/${id}`);
     return response.data;
   },
+  
+  scrapeWebsite: async (id) => {
+    const response = await api.post(`/run/scraper/${id}`);
+    return response.data;
+  },
 
   // Content
   getContentList: async (params = {}) => {
