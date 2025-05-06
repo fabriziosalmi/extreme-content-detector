@@ -78,20 +78,26 @@ const apiService = {
   deleteWebsite: (id) => api.delete(`/websites/${id}`),
   
   // Content
-  getContents: (params) => api.get('/contents', { params }),
-  getContent: (id) => api.get(`/contents/${id}`),
+  getContents: (params) => api.get('/content', { params }),
+  getContent: (id) => api.get(`/content/${id}`),
+  getRecentContent: () => api.get('/content', { params: { limit: 10, sort: 'latest' } }),
   
   // Analysis
-  analyzeContent: (id) => api.post(`/contents/${id}/analyze`),
-  getAnalysisResults: (id) => api.get(`/contents/${id}/analysis`),
+  analyzeContent: (id) => api.post(`/content/${id}/analyze`),
+  getAnalysisResults: (id) => api.get(`/content/${id}/analysis`),
   
   // Dashboard data
-  getDashboardStats: () => api.get('/dashboard/stats'),
-  getRecentContent: () => api.get('/dashboard/recent-content'),
+  getDashboardStats: () => api.get('/stats'),
   
-  // System
+  // System actions
   getSystemStatus: () => api.get('/system/status'),
-  triggerScrape: (websiteId) => api.post(`/websites/${websiteId}/scrape`),
+  triggerScrape: (websiteId) => {
+    if (websiteId === 'all') {
+      return api.post('/run/scraper');
+    }
+    return api.post(`/run/scraper/${websiteId}`);
+  },
+  triggerAnalysis: () => api.post('/run/analyzer'),
 };
 
 export default apiService;

@@ -80,11 +80,11 @@ const Dashboard = () => {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      const statsData = await apiService.getStats();
+      const statsData = await apiService.getDashboardStats();
       setStats(statsData);
       
       // Get some recent content
-      const contentData = await apiService.getContentList({ limit: 10 });
+      const contentData = await apiService.getRecentContent();
       setContent(contentData);
       
       setLoading(false);
@@ -101,7 +101,9 @@ const Dashboard = () => {
 
   const handleRunScraper = async () => {
     try {
-      const response = await apiService.runScraper();
+      // Note: This currently requires a websiteId parameter
+      // We might need to modify the API to allow triggering all sites
+      const response = await apiService.triggerScrape('all');
       setNotification({
         open: true,
         message: 'Scraper started successfully!',
@@ -118,7 +120,9 @@ const Dashboard = () => {
 
   const handleRunAnalyzer = async () => {
     try {
-      const response = await apiService.runAnalyzer();
+      // Since there's no direct analyzeAll method, we can use the system endpoint
+      // We'll need to add this method to the API service
+      const response = await apiService.triggerAnalysis();
       setNotification({
         open: true,
         message: 'Content analyzer started successfully!',
