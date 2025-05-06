@@ -236,7 +236,13 @@ function App() {
                   <Footer />
                 </>
               } />
-              <Route path="/advanced" element={<AdvancedAnalysisForm onAnalysisComplete={handleComparativeAnalysis} />} />
+              <Route path="/advanced" element={
+                <AdvancedAnalysisForm 
+                  onAnalysisComplete={handleComparativeAnalysis} 
+                  settings={settings}
+                  updateSettings={updateSettings}
+                />
+              } />
               <Route path="/stats" element={<StatsPage />} />
               <Route path="/about" element={<AboutPage />} />
             </Routes>

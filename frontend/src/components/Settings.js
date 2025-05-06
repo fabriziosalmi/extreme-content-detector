@@ -4,6 +4,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 
 /**
  * Settings component for adjusting analysis parameters
+ * Consolidated to include all settings in one place
  */
 const Settings = ({ isOpen, onClose, settings, updateSettings }) => {
   const [loading, setLoading] = useState(false);
@@ -65,6 +66,14 @@ const Settings = ({ isOpen, onClose, settings, updateSettings }) => {
   const handleSave = () => {
     // Update parent component's settings
     updateSettings(localSettings);
+    
+    // Store settings in localStorage
+    try {
+      localStorage.setItem('antifaModelSettings', JSON.stringify(localSettings));
+    } catch (e) {
+      console.error('Error saving settings to localStorage:', e);
+    }
+    
     onClose();
   };
 
@@ -81,6 +90,23 @@ const Settings = ({ isOpen, onClose, settings, updateSettings }) => {
     }));
   };
 
+  // Select or deselect all methods
+  const handleSelectAllMethods = (selected) => {
+    // Keep keywordMatching always true as it's required
+    const updatedMethods = { ...localSettings.methods };
+    
+    Object.keys(updatedMethods).forEach(method => {
+      if (method !== 'keywordMatching') {
+        updatedMethods[method] = selected;
+      }
+    });
+    
+    setLocalSettings(prev => ({
+      ...prev,
+      methods: updatedMethods
+    }));
+  };
+
   const handleCategoryChange = (categoryId, checked) => {
     const updatedCategories = localSettings.categories.map(cat => 
       cat.id === categoryId 
@@ -91,6 +117,13 @@ const Settings = ({ isOpen, onClose, settings, updateSettings }) => {
     setLocalSettings(prev => ({
       ...prev,
       categories: updatedCategories
+    }));
+  };
+
+  const handleDisplayOptionChange = (optionName, checked) => {
+    setLocalSettings(prev => ({
+      ...prev,
+      [optionName]: checked
     }));
   };
 
@@ -142,260 +175,275 @@ const Settings = ({ isOpen, onClose, settings, updateSettings }) => {
         </div>
         
         <div className="mb-8">
-          <h3 className="text-lg font-semibold mb-4">Soglie di Rilevamento</h3>
-          
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="minKeywordStrength" className="block text-sm font-medium text-gray-700 mb-1">
-                Forza Minima Parole Chiave
-              </label>
-              <select
-                id="minKeywordStrength"
-                name="minKeywordStrength"
-                value={localSettings.thresholds?.minKeywordStrength || 'low'}
-                onChange={handleChange}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
-              >
-                <option value="low">Bassa</option>
-                <option value="medium">Media</option>
-                <option value="high">Alta</option>
-              </select>
-              <p className="mt-1 text-sm text-gray-500">
-                Filtra gli indicatori in base alla loro forza (impatto ideologico).
-              </p>
-            </div>
-            
-            <div>
-              <label htmlFor="minOccurrences" className="block text-sm font-medium text-gray-700 mb-1">
-                Occorrenze Minime: {localSettings.thresholds?.minOccurrences || 1}
-              </label>
-              <input
-                type="range"
-                id="minOccurrences"
-                name="minOccurrences"
-                min="1"
-                max="10"
-                value={localSettings.thresholds?.minOccurrences || 1}
-                onChange={handleSliderChange}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                Numero minimo di volte che un indicatore deve apparire per essere considerato rilevante.
-              </p>
-            </div>
-            
-            <div>
-              <label htmlFor="proximityDistance" className="block text-sm font-medium text-gray-700 mb-1">
-                Distanza di Prossimità: {localSettings.thresholds?.proximityDistance || 20} parole
-              </label>
-              <input
-                type="range"
-                id="proximityDistance"
-                name="proximityDistance"
-                min="5"
-                max="50"
-                step="5"
-                value={localSettings.thresholds?.proximityDistance || 20}
-                onChange={handleSliderChange}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                Distanza massima tra parole per analizzare il contesto di prossimità.
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Metodi di Analisi</h3>
-            <div className="space-x-2">
-              <button 
-                onClick={() => handleSelectAllCategories(true)}
-                className="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100"
+          <h3 className="text-lg font-semibold mb-4">Metodi di Analisi</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => handleSelectAllMethods(true)}
+                className="text-sm text-primary hover:text-primary-dark"
               >
                 Seleziona tutti
               </button>
-              <button 
-                onClick={() => handleSelectAllCategories(false)}
-                className="px-3 py-1 text-sm bg-gray-50 text-gray-700 rounded hover:bg-gray-100"
+              <button
+                onClick={() => handleSelectAllMethods(false)}
+                className="text-sm text-primary hover:text-primary-dark"
               >
                 Deseleziona tutti
               </button>
             </div>
           </div>
           
-          <div className="space-y-2">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="keywordMatching"
-                checked={localSettings.methods?.keywordMatching ?? true}
-                disabled={true}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded cursor-not-allowed"
-              />
-              <label htmlFor="keywordMatching" className="ml-2 block text-gray-700">
-                Corrispondenza parole chiave (obbligatorio)
-              </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+            <div className="space-y-2">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="keywordMatching"
+                  checked={localSettings.methods.keywordMatching}
+                  onChange={() => {}}
+                  disabled={true}
+                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                />
+                <label htmlFor="keywordMatching" className="ml-2 block text-gray-700">
+                  Corrispondenza Parole Chiave (obbligatorio)
+                </label>
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="contextAnalysis"
+                  checked={localSettings.methods.contextAnalysis}
+                  onChange={() => handleMethodChange('contextAnalysis', !localSettings.methods.contextAnalysis)}
+                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                />
+                <label htmlFor="contextAnalysis" className="ml-2 block text-gray-700">
+                  Analisi del Contesto
+                </label>
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="frequencyAnalysis"
+                  checked={localSettings.methods.frequencyAnalysis}
+                  onChange={() => handleMethodChange('frequencyAnalysis', !localSettings.methods.frequencyAnalysis)}
+                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                />
+                <label htmlFor="frequencyAnalysis" className="ml-2 block text-gray-700">
+                  Analisi della Frequenza
+                </label>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="proximityAnalysis"
+                  checked={localSettings.methods.proximityAnalysis}
+                  onChange={() => handleMethodChange('proximityAnalysis', !localSettings.methods.proximityAnalysis)}
+                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                />
+                <label htmlFor="proximityAnalysis" className="ml-2 block text-gray-700">
+                  Analisi di Prossimità
+                </label>
+              </div>
             </div>
             
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="contextAnalysis"
-                checked={localSettings.methods?.contextAnalysis ?? false}
-                onChange={(e) => handleMethodChange("contextAnalysis", e.target.checked)}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-              />
-              <label htmlFor="contextAnalysis" className="ml-2 block text-gray-700">
-                Analisi contestuale (frasi circostanti)
-              </label>
+            <div className="space-y-2">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="patternMatching"
+                  checked={localSettings.methods.patternMatching}
+                  onChange={() => handleMethodChange('patternMatching', !localSettings.methods.patternMatching)}
+                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                />
+                <label htmlFor="patternMatching" className="ml-2 block text-gray-700">
+                  Riconoscimento di Modelli
+                </label>
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="sentimentAnalysis"
+                  checked={localSettings.methods.sentimentAnalysis}
+                  onChange={() => handleMethodChange('sentimentAnalysis', !localSettings.methods.sentimentAnalysis)}
+                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                />
+                <label htmlFor="sentimentAnalysis" className="ml-2 block text-gray-700">
+                  Analisi del Sentimento
+                </label>
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="rhetoricalDeviceAnalysis"
+                  checked={localSettings.methods.rhetoricalDeviceAnalysis}
+                  onChange={() => handleMethodChange('rhetoricalDeviceAnalysis', !localSettings.methods.rhetoricalDeviceAnalysis)}
+                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                />
+                <label htmlFor="rhetoricalDeviceAnalysis" className="ml-2 block text-gray-700">
+                  Analisi dei Dispositivi Retorici
+                </label>
+              </div>
             </div>
-            
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="frequencyAnalysis"
-                checked={localSettings.methods?.frequencyAnalysis ?? false}
-                onChange={(e) => handleMethodChange("frequencyAnalysis", e.target.checked)}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-              />
-              <label htmlFor="frequencyAnalysis" className="ml-2 block text-gray-700">
-                Analisi di frequenza (ripetizione di indicatori)
-              </label>
-            </div>
-            
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="proximityAnalysis"
-                checked={localSettings.methods?.proximityAnalysis ?? false}
-                onChange={(e) => handleMethodChange("proximityAnalysis", e.target.checked)}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-              />
-              <label htmlFor="proximityAnalysis" className="ml-2 block text-gray-700">
-                Analisi di prossimità (indicatori vicini)
-              </label>
-            </div>
-            
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="patternMatching"
-                checked={localSettings.methods?.patternMatching ?? false}
-                onChange={(e) => handleMethodChange("patternMatching", e.target.checked)}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-              />
-              <label htmlFor="patternMatching" className="ml-2 block text-gray-700">
-                Corrispondenza di schemi (regex)
-              </label>
-            </div>
-            
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="sentimentAnalysis"
-                checked={localSettings.methods?.sentimentAnalysis ?? false}
-                onChange={(e) => handleMethodChange("sentimentAnalysis", e.target.checked)}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-              />
-              <label htmlFor="sentimentAnalysis" className="ml-2 block text-gray-700">
-                Analisi del sentimento (tono emotivo)
-              </label>
-            </div>
-            
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="nounPhraseAnalysis"
-                checked={localSettings.methods?.nounPhraseAnalysis ?? false}
-                onChange={(e) => handleMethodChange("nounPhraseAnalysis", e.target.checked)}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-              />
-              <label htmlFor="nounPhraseAnalysis" className="ml-2 block text-gray-700">
-                Analisi di frasi nominali (pattern ideologici)
-              </label>
-            </div>
-            
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="propagandaTechniqueAnalysis"
-                checked={localSettings.methods?.propagandaTechniqueAnalysis ?? false}
-                onChange={(e) => handleMethodChange("propagandaTechniqueAnalysis", e.target.checked)}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-              />
-              <label htmlFor="propagandaTechniqueAnalysis" className="ml-2 block text-gray-700">
-                Analisi tecniche di propaganda
-              </label>
-            </div>
-            
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="topicCoherenceAnalysis"
-                checked={localSettings.methods?.topicCoherenceAnalysis ?? false}
-                onChange={(e) => handleMethodChange("topicCoherenceAnalysis", e.target.checked)}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-              />
-              <label htmlFor="topicCoherenceAnalysis" className="ml-2 block text-gray-700">
-                Analisi di coerenza tematica (narrative ideologiche)
-              </label>
-            </div>
-            
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="rhetoricalDeviceAnalysis"
-                checked={localSettings.methods?.rhetoricalDeviceAnalysis ?? false}
-                onChange={(e) => handleMethodChange("rhetoricalDeviceAnalysis", e.target.checked)}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-              />
-              <label htmlFor="rhetoricalDeviceAnalysis" className="ml-2 block text-gray-700">
-                Analisi di dispositivi retorici
-              </label>
-            </div>
-          </div>
-          
-          <div className="mt-4 p-3 bg-blue-50 rounded-md">
-            <h4 className="text-md font-semibold text-blue-700">Consiglio di Analisi</h4>
-            <p className="text-sm text-blue-600 mt-1">
-              Per risultati ottimali, combina almeno 3-4 metodi. I metodi avanzati come l'analisi di coerenza tematica e i dispositivi retorici 
-              richiedono più tempo ma offrono risultati più approfonditi.
-            </p>
           </div>
         </div>
         
         <div className="mb-8">
-          <h3 className="text-lg font-semibold mb-4">Categorie da Analizzare</h3>
-          <p className="text-sm text-gray-600 mb-4">
-            Seleziona le categorie di indicatori da includere nell'analisi. Se non selezioni alcuna categoria, verranno analizzate tutte.
-          </p>
+          <h3 className="text-lg font-semibold mb-4">Categorie di Indicatori</h3>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-gray-500">
+              Seleziona le categorie da analizzare o deseleziona tutte per analizzare l'intero set
+            </p>
+            <div>
+              <button
+                onClick={() => handleSelectAllCategories(true)}
+                className="text-sm text-primary hover:text-primary-dark mr-2"
+              >
+                Seleziona tutti
+              </button>
+              <button
+                onClick={() => handleSelectAllCategories(false)}
+                className="text-sm text-primary hover:text-primary-dark"
+              >
+                Deseleziona tutti
+              </button>
+            </div>
+          </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {localSettings.categories?.map(category => (
-              <div key={category.id} className="p-3 border rounded-md hover:border-primary">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id={`category-${category.id}`}
-                    checked={category.enabled}
-                    onChange={(e) => handleCategoryChange(category.id, e.target.checked)}
-                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                  />
-                  <label htmlFor={`category-${category.id}`} className="ml-2 block text-gray-700 font-medium">
-                    {category.name}
-                  </label>
-                </div>
-                <p className="mt-1 text-xs text-gray-500 pl-6">
-                  {category.description}
-                </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+            {localSettings.categories.map(category => (
+              <div key={category.id} className="flex items-center">
+                <input
+                  type="checkbox"
+                  id={`category-${category.id}`}
+                  checked={category.enabled}
+                  onChange={() => handleCategoryChange(category.id, !category.enabled)}
+                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                />
+                <label htmlFor={`category-${category.id}`} className="ml-2 block text-gray-700 text-sm">
+                  {category.name}
+                </label>
               </div>
             ))}
           </div>
         </div>
         
-        <div className="flex justify-end gap-3">
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold mb-4">Opzioni di Visualizzazione</h3>
+          <div className="space-y-3">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="displayMode"
+                checked={localSettings.displayMode === 'detailed'}
+                onChange={(e) => setLocalSettings(prev => ({
+                  ...prev,
+                  displayMode: e.target.checked ? 'detailed' : 'summary'
+                }))}
+                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+              />
+              <label htmlFor="displayMode" className="ml-2 block text-gray-700">
+                Visualizzazione dettagliata dei risultati
+              </label>
+            </div>
+            
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="highlightMatches"
+                checked={localSettings.highlightMatches ?? true}
+                onChange={(e) => handleDisplayOptionChange("highlightMatches", e.target.checked)}
+                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+              />
+              <label htmlFor="highlightMatches" className="ml-2 block text-gray-700">
+                Evidenzia le corrispondenze nel testo
+              </label>
+            </div>
+            
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="showEvidenceFactors"
+                checked={localSettings.showEvidenceFactors ?? true}
+                onChange={(e) => handleDisplayOptionChange("showEvidenceFactors", e.target.checked)}
+                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+              />
+              <label htmlFor="showEvidenceFactors" className="ml-2 block text-gray-700">
+                Mostra fattori di evidenza
+              </label>
+            </div>
+          </div>
+        </div>
+        
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold mb-4">Soglie di Analisi</h3>
+          
+          <div className="mb-4">
+            <label htmlFor="minKeywordStrength" className="block text-sm font-medium text-gray-700 mb-1">
+              Forza minima delle parole chiave
+            </label>
+            <select
+              id="minKeywordStrength"
+              name="minKeywordStrength"
+              value={localSettings.thresholds.minKeywordStrength}
+              onChange={handleChange}
+              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
+            >
+              <option value="low">Bassa</option>
+              <option value="medium">Media</option>
+              <option value="high">Alta</option>
+            </select>
+          </div>
+          
+          <div className="mb-4">
+            <label htmlFor="proximityDistance" className="block text-sm font-medium text-gray-700 mb-1">
+              Distanza di prossimità: {localSettings.thresholds.proximityDistance} parole
+            </label>
+            <input
+              type="range"
+              id="proximityDistance"
+              name="proximityDistance"
+              min="5"
+              max="50"
+              step="5"
+              value={localSettings.thresholds.proximityDistance}
+              onChange={handleSliderChange}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+            />
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>5</span>
+              <span>25</span>
+              <span>50</span>
+            </div>
+          </div>
+          
+          <div className="mb-4">
+            <label htmlFor="minOccurrences" className="block text-sm font-medium text-gray-700 mb-1">
+              Numero minimo di occorrenze: {localSettings.thresholds.minOccurrences}
+            </label>
+            <input
+              type="range"
+              id="minOccurrences"
+              name="minOccurrences"
+              min="1"
+              max="10"
+              value={localSettings.thresholds.minOccurrences}
+              onChange={handleSliderChange}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+            />
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>1</span>
+              <span>5</span>
+              <span>10</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex justify-end space-x-3">
           <button
             onClick={onClose}
             className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"

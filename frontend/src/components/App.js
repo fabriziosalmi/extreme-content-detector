@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import '../App.css';
 import AnalysisForm from './AnalysisForm';
+import AdvancedAnalysisForm from './AdvancedAnalysisForm';
 import ResultsDisplay from './ResultsDisplay';
+import ComparativeResultsDisplay from './ComparativeResultsDisplay';
 import Header from './Header';
 import Footer from './Footer';
 import Disclaimer from './Disclaimer';
@@ -50,8 +52,9 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [settings, setSettings] = useState(defaultSettings);
-  const [showSettings, setShowSettings] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [originalText, setOriginalText] = useState('');
+  const [analysisMode, setAnalysisMode] = useState('standard'); // 'standard' or 'advanced'
 
   // Load settings from localStorage on initial load
   useEffect(() => {
@@ -69,8 +72,17 @@ function App() {
     setSettings(newSettings);
   };
 
-  const toggleSettings = () => {
-    setShowSettings(prev => !prev);
+  const openSettingsModal = () => {
+    setShowSettingsModal(true);
+  };
+
+  const closeSettingsModal = () => {
+    setShowSettingsModal(false);
+  };
+
+  const toggleAnalysisMode = () => {
+    setAnalysisMode(prev => prev === 'standard' ? 'advanced' : 'standard');
+    setResults(null); // Clear previous results when changing modes
   };
 
   const handleAnalyze = async (text, url) => {
@@ -95,7 +107,8 @@ function App() {
           thresholds: settings.thresholds,
           categories: settings.categories
             .filter(cat => cat.enabled)
-            .map(cat => cat.id)
+            .map(cat => cat.id),
+          analysisType: settings.analysisType
         }
       };
       
@@ -118,55 +131,78 @@ function App() {
     }
   };
 
+  const handleAdvancedAnalysisComplete = (analysisResult) => {
+    setResults(analysisResult);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header toggleSettings={toggleSettings} />
+      <Header 
+        toggleSettings={openSettingsModal}
+        analysisMode={analysisMode}
+        toggleAnalysisMode={toggleAnalysisMode}
+      />
+      
+      {/* Settings Modal */}
+      <Settings 
+        isOpen={showSettingsModal}
+        onClose={closeSettingsModal}
+        settings={settings} 
+        updateSettings={updateSettings}
+      />
       
       <main className="flex-grow container mx-auto px-4 py-8">
-        {showSettings ? (
-          <Settings 
-            settings={settings} 
-            updateSettings={updateSettings} 
-          />
-        ) : (
-          <>
-            <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-              <AnalysisForm 
-                onAnalyze={handleAnalyze}
-                setLoading={setLoading} 
-                setError={setError} 
-                analysisType={settings.analysisType}
-              />
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+          {analysisMode === 'standard' ? (
+            <AnalysisForm 
+              onAnalyze={handleAnalyze}
+              setLoading={setLoading} 
+              setError={setError} 
+              settings={settings}
+              onOpenSettings={openSettingsModal}
+            />
+          ) : (
+            <AdvancedAnalysisForm 
+              onAnalysisComplete={handleAdvancedAnalysisComplete}
+              settings={settings}
+              onOpenSettings={openSettingsModal}
+            />
+          )}
+        </div>
+            
+        <Disclaimer />
+            
+        {loading && (
+          <div className="text-center my-8">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+              <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
+                Caricamento...
+              </span>
             </div>
+            <p className="mt-2 text-gray-700">Analisi in corso, attendere...</p>
+          </div>
+        )}
             
-            <Disclaimer />
+        {error && (
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 my-6" role="alert">
+            <p className="font-bold">Errore</p>
+            <p>{error}</p>
+          </div>
+        )}
             
-            {loading && (
-              <div className="text-center my-8">
-                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
-                  <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
-                    Caricamento...
-                  </span>
-                </div>
-                <p className="mt-2 text-gray-700">Analisi in corso, attendere...</p>
-              </div>
-            )}
-            
-            {error && (
-              <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 my-6" role="alert">
-                <p className="font-bold">Errore</p>
-                <p>{error}</p>
-              </div>
-            )}
-            
-            {!loading && results && (
-              <ResultsDisplay 
-                results={results}
-                originalText={originalText}
-                settings={settings}
-              />
-            )}
-          </>
+        {!loading && results && (
+          analysisMode === 'standard' ? (
+            <ResultsDisplay 
+              results={results}
+              originalText={originalText}
+              settings={settings}
+            />
+          ) : (
+            <ComparativeResultsDisplay 
+              results={results} 
+              settings={settings}
+            />
+          )
         )}
       </main>
       
