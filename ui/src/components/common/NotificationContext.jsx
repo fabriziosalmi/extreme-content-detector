@@ -1,49 +1,90 @@
-import React, { createContext, useState, useContext } from 'react';
-import { Snackbar, Alert } from '@mui/material';
+import React, { createContext, useContext, useState } from 'react';
+import { Snackbar, Alert, AlertTitle } from '@mui/material';
 
-// Create context
-const NotificationContext = createContext();
+// Create a context for notifications
+const NotificationContext = createContext({
+  showNotification: () => {},
+  closeNotification: () => {},
+});
 
-// Provider component
+/**
+ * Hook to use the notification system
+ * @returns {Object} notification methods
+ */
+export const useNotification = () => useContext(NotificationContext);
+
+/**
+ * Provider component for notifications
+ * @param {Object} props - Component props
+ * @param {React.ReactNode} props.children - Child components
+ */
 export const NotificationProvider = ({ children }) => {
   const [notification, setNotification] = useState({
     open: false,
     message: '',
-    severity: 'info', // 'success', 'info', 'warning', or 'error'
+    title: '',
+    severity: 'info',
+    autoHideDuration: 5000,
   });
 
-  const showNotification = (message, severity = 'info') => {
+  const showNotification = ({
+    message,
+    title,
+    severity = 'info',
+    autoHideDuration = 5000,
+  }) => {
     setNotification({
       open: true,
       message,
+      title,
       severity,
+      autoHideDuration,
     });
   };
 
-  const closeNotification = () => {
+  const closeNotification = (event, reason) => {
+    if (reason === 'clickaway') return;
     setNotification({ ...notification, open: false });
   };
+
+  // Convenience methods for different notification types
+  const notifySuccess = (message, title) => 
+    showNotification({ message, title, severity: 'success' });
+  
+  const notifyError = (message, title = 'Error') => 
+    showNotification({ message, title, severity: 'error', autoHideDuration: 6000 });
+  
+  const notifyWarning = (message, title) => 
+    showNotification({ message, title, severity: 'warning' });
+  
+  const notifyInfo = (message, title) => 
+    showNotification({ message, title, severity: 'info' });
 
   return (
     <NotificationContext.Provider 
       value={{ 
-        notification, 
         showNotification, 
-        closeNotification 
+        closeNotification,
+        notifySuccess,
+        notifyError, 
+        notifyWarning,
+        notifyInfo
       }}
     >
       {children}
       <Snackbar
         open={notification.open}
-        autoHideDuration={6000}
+        autoHideDuration={notification.autoHideDuration}
         onClose={closeNotification}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Alert 
           onClose={closeNotification} 
-          severity={notification.severity} 
+          severity={notification.severity}
+          variant="filled"
           sx={{ width: '100%' }}
         >
+          {notification.title && <AlertTitle>{notification.title}</AlertTitle>}
           {notification.message}
         </Alert>
       </Snackbar>
@@ -51,11 +92,4 @@ export const NotificationProvider = ({ children }) => {
   );
 };
 
-// Custom hook to use the notification context
-export const useNotification = () => {
-  const context = useContext(NotificationContext);
-  if (!context) {
-    throw new Error('useNotification must be used within a NotificationProvider');
-  }
-  return context;
-};
+export default NotificationContext;
