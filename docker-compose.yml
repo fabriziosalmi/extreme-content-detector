@@ -1,37 +1,52 @@
 version: '3.8'
 
 services:
+  # Backend API service
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    volumes:
+      - ./data:/app/data
     ports:
       - "8000:8000"
-    volumes:
-      - ./backend:/app
-      - /app/logs
-      - /app/cache
+    environment:
+      - PYTHONPATH=/app
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
       interval: 30s
       timeout: 10s
-      retries: 5
-    environment:
-      - LOG_LEVEL=info
-    networks:
-      - antifa-network
+      retries: 3
+      start_period: 40s
 
+  # Frontend web interface
   frontend:
-    build: ./frontend
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
     ports:
-      - "3000:3000"
+      - "80:80"
     depends_on:
       - backend
     restart: unless-stopped
-    environment:
-      - REACT_APP_API_URL=http://backend:8000
-    networks:
-      - antifa-network
 
-networks:
-  antifa-network:
-    driver: bridge
+  # Scraper worker (runs scraper and analyzer in the background)
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    volumes:
+      - ./data:/app/data
+    command: >
+      sh -c "python -m src.scrapers.website_scraper && 
+             python -m src.analysis.content_analyzer && 
+             sleep 3600"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G

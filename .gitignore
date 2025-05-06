@@ -1,38 +1,74 @@
-# Node modules
-node_modules
-frontend/node_modules/
-**/node_modules/
-**/.cache/
-*.pack
-
-# Backend Python cache files
-backend/__pycache__/
-**/__pycache__/
+# Python
+__pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+.venv/
+*.pyc
 
-# System files
-.DS_Store
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Build artifacts and cache
-frontend/build/
-frontend/.cache/
-**/dist/
-**/.cache/
-*.pack
-
-# Backend cache
-backend/cache/
-
-# Environment variables
+# Environment variables and secrets
 .env
+.env.*
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# Debug logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Node.js / React / UI
+node_modules/
+coverage/
+ui/dist/
+ui/build/
+ui/.pnp
+ui/.pnp.js
+
+# IDE/Editor specific
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+.history/
+*.sublime-workspace
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Docker
+.docker/
+.dockerignore
+
+# Application specific
+data/sqlite/*
+!data/sqlite/.gitkeep
