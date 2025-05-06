@@ -39,8 +39,7 @@ class Content(Base):
     website_id = Column(Integer, ForeignKey('websites.id'), nullable=False)
     url = Column(String(500), nullable=False)
     title = Column(String(500), nullable=True)
-    content_text = Column(Text, nullable=False)
-    content_html = Column(Text, nullable=True)
+    content_excerpt = Column(String(1000), nullable=True)  # Short excerpt instead of full content
     published_date = Column(DateTime, nullable=True)
     scraped_date = Column(DateTime, default=datetime.datetime.utcnow)
     

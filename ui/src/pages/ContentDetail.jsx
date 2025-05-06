@@ -229,8 +229,14 @@ const ContentDetail = () => {
             <Divider sx={{ my: 3 }} />
             
             <Typography variant="h6" gutterBottom>
-              Content Text
+              Content Preview
             </Typography>
+            
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="body2">
+                We only store content excerpts and analysis results to save space. The full content is analyzed on-the-fly during scraping.
+              </Typography>
+            </Alert>
             
             <Paper 
               elevation={1} 
@@ -243,7 +249,7 @@ const ContentDetail = () => {
               }}
             >
               <Typography variant="body2">
-                {content.content_text || 'No text content available.'}
+                {content.content_excerpt || 'No content excerpt available.'}
               </Typography>
             </Paper>
           </Paper>

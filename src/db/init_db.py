@@ -1,11 +1,22 @@
 """
 Database initialization module.
 """
-from src.db.models import init_db, get_engine, get_session, Website
+import argparse
+import os
+from src.db.models import init_db, get_engine, get_session, Website, Base
 
-def initialize_database():
+def initialize_database(reset=False):
     """Initialize the database and create the tables."""
-    engine = init_db()
+    engine = get_engine()
+    
+    if reset:
+        # Drop all existing tables
+        print("Dropping all existing tables...")
+        Base.metadata.drop_all(engine)
+        print("Database reset complete.")
+    
+    # Create tables
+    init_db(engine)
     print("Database initialized successfully.")
     return engine
 
@@ -42,5 +53,9 @@ def add_default_websites(session=None):
     print(f"Added {len(default_websites)} default websites to monitor.")
 
 if __name__ == "__main__":
-    engine = initialize_database()
+    parser = argparse.ArgumentParser(description="Initialize the database")
+    parser.add_argument("--reset", action="store_true", help="Reset the database by dropping all tables before initialization")
+    args = parser.parse_args()
+    
+    engine = initialize_database(reset=args.reset)
     add_default_websites()

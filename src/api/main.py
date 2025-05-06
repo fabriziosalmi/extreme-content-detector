@@ -67,7 +67,7 @@ class ContentResponse(BaseModel):
     website_id: int
     url: str
     title: Optional[str] = None
-    content_text: str
+    content_excerpt: Optional[str] = None  # Changed from content_text to content_excerpt
     published_date: Optional[datetime] = None
     scraped_date: datetime
     racist_score: Optional[float] = None

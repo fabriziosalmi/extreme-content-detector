@@ -1,14 +1,81 @@
-# Antifa Scraper
+# Antifa Model - Extremist Content Analysis Application
 
-A tool for monitoring and analyzing extremist content on the web. This project provides web scraping capabilities, text analysis using NLP techniques, and a modern user interface to visualize the results.
+This application scrapes and analyzes websites for extremist content, producing analytics and visualizations to help track and understand extremist online presence.
 
 ## Features
 
-- **Web Scraping**: Monitor websites for racist, fascist, nazi, and far-right content
-- **Text Analysis**: Analyze and rank content based on extremist indicators using NLP
-- **SQLite Database**: Store all scraped content and analysis results
-- **Modern UI**: Clean, responsive interface to visualize data and manage monitoring
-- **Dockerized Deployment**: Easy deployment using Docker and docker-compose
+- Website scraping and content analysis
+- Extremism scoring and classification system
+- Dashboard for monitoring extremist content
+- Storage-efficient design that analyzes content on-the-fly
+- Modern React-based UI with Material UI components
+
+## System Requirements
+
+- Python 3.10+
+- Node.js 14+
+- SQLite (production version can use PostgreSQL)
+
+## Installation and Setup
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/yourusername/antifa-model.git
+   cd antifa-model
+   ```
+
+2. Set up the Python environment:
+   ```
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
+3. Initialize or reset the database:
+   ```
+   python -m src.db.init_db --reset
+   ```
+
+4. Set up the UI:
+   ```
+   cd ui
+   npm install
+   npm run build
+   cd ..
+   ```
+
+5. Start the backend server:
+   ```
+   uvicorn src.api.main:app --reload
+   ```
+
+6. For development, start the frontend:
+   ```
+   cd ui
+   npm run dev
+   ```
+
+## Architecture
+
+- **Backend**: Python with FastAPI
+- **Frontend**: React with Material UI
+- **Database**: SQLite (default) or PostgreSQL
+- **Scraping**: BeautifulSoup and Requests
+- **Analysis**: NLTK and transformers for NLP
+
+## Database Schema
+
+The application uses two main tables:
+- **Websites**: Stores information about monitored websites
+- **Content**: Stores analyzed content with extremism scores (only excerpts, not full content)
+
+## Docker Deployment
+
+Docker configuration is available in the `docker` directory:
+
+```
+docker-compose up -d
+```
 
 ## Project Structure
 
@@ -31,67 +98,13 @@ antifa-model/
 └── requirements.txt       # Python dependencies
 ```
 
-## Getting Started
+## License
 
-### Prerequisites
-
-- Docker and Docker Compose
-- Python 3.9+ (for development)
-- Node.js 16+ (for frontend development)
-
-### Running with Docker
-
-The easiest way to get started is using Docker Compose:
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/antifa-scraper.git
-cd antifa-scraper
-
-# Start the services
-docker-compose up -d
-
-# Access the UI at http://localhost
-```
-
-### Development Setup
-
-To set up a development environment:
-
-```bash
-# Backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-python -m spacy download en_core_web_sm
-
-# Initialize the database
-python -m src.db.init_db
-
-# Start the API server
-uvicorn src.api.main:app --reload
-
-# Frontend (in another terminal)
-cd ui
-npm install
-npm run dev
-```
-
-## Usage
-
-1. Access the web UI at `http://localhost`
-2. Add websites to monitor in the "Websites" section
-3. Run the scraper to collect content
-4. Run the analyzer to process and rank the content
-5. View the results on the dashboard and content pages
+MIT
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Disclaimer
 

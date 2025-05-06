@@ -13,6 +13,8 @@ from nltk.corpus import stopwords
 import spacy
 from transformers import pipeline
 from sqlalchemy.sql import func
+import requests
+from bs4 import BeautifulSoup
 
 from src.db.models import get_session, Content
 
@@ -86,18 +88,21 @@ class ExtremismAnalyzer:
             Content.overall_extremism_score.is_(None)
         ).limit(limit).all()
     
-    def analyze_content(self, content):
-        """Analyze a single content item for extremist indicators."""
-        logger.info(f"Analyzing content: {content.id} - {content.title}")
+    def analyze_text(self, text):
+        """Analyze text directly and return scores without storing in database."""
+        logger.info("Analyzing text content on-the-fly")
         
         try:
-            # Get the text content
-            text = content.content_text
-            
             # Skip if no text
             if not text or len(text) < 50:
-                logger.warning(f"Content {content.id} has insufficient text for analysis.")
-                return False
+                logger.warning("Insufficient text for analysis.")
+                return {
+                    'racist_score': 0,
+                    'fascist_score': 0,
+                    'nazi_score': 0,
+                    'far_right_score': 0,
+                    'overall_extremism_score': 0
+                }
             
             # Perform keyword analysis
             keyword_scores = self._analyze_keywords(text)
@@ -119,15 +124,68 @@ class ExtremismAnalyzer:
             # Normalize to 0-1 range
             overall_score = min(max(overall_score, 0), 1)
             
+            scores = {
+                'racist_score': keyword_scores['racist'],
+                'fascist_score': keyword_scores['fascist'],
+                'nazi_score': keyword_scores['nazi'],
+                'far_right_score': keyword_scores['far_right'],
+                'overall_extremism_score': overall_score
+            }
+            
+            logger.info(f"Successfully analyzed text with overall score {overall_score:.2f}")
+            return scores
+            
+        except Exception as e:
+            logger.error(f"Error analyzing text: {str(e)}")
+            return {
+                'racist_score': 0,
+                'fascist_score': 0,
+                'nazi_score': 0,
+                'far_right_score': 0,
+                'overall_extremism_score': 0
+            }
+    
+    def analyze_content(self, content):
+        """Analyze a single content item for extremist indicators."""
+        logger.info(f"Analyzing content: {content.id} - {content.title}")
+        
+        # Since our database model has changed, we need to handle both old and new formats
+        # In the new format, we should be using the content_excerpt field
+        try:
+            # Get the text content - use content_excerpt if available
+            if hasattr(content, 'content_excerpt') and content.content_excerpt:
+                # If we only have an excerpt, we need to re-fetch the full content
+                response = requests.get(content.url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.text, 'html.parser')
+                    # Use the same extraction method as in the scraper
+                    for script in soup(["script", "style", "nav", "footer", "header"]):
+                        script.extract()
+                    paragraphs = soup.find_all('p')
+                    text = '\n\n'.join([p.get_text().strip() for p in paragraphs if p.get_text().strip()])
+                    if not text:
+                        text = soup.get_text().strip()
+                else:
+                    # If we can't re-fetch, use what we have
+                    text = content.content_excerpt
+            else:
+                # Backward compatibility - use content_text if available
+                text = getattr(content, 'content_text', '')
+            
+            # Skip if no text
+            if not text or len(text) < 50:
+                logger.warning(f"Content {content.id} has insufficient text for analysis.")
+                return False
+            
+            # Use the analyze_text method to get scores
+            scores = self.analyze_text(text)
+            
             # Update the content record with scores
-            content.racist_score = keyword_scores['racist']
-            content.fascist_score = keyword_scores['fascist']
-            content.nazi_score = keyword_scores['nazi']
-            content.far_right_score = keyword_scores['far_right']
-            content.overall_extremism_score = overall_score
+            for key, value in scores.items():
+                setattr(content, key, value)
             
             self.session.commit()
-            logger.info(f"Successfully analyzed content {content.id} with score {overall_score:.2f}")
+            logger.info(f"Successfully analyzed content {content.id} with score {scores['overall_extremism_score']:.2f}")
             return True
             
         except Exception as e:
