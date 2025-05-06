@@ -69,24 +69,16 @@ const NavBar = ({ toggleSettings, toggleStatistics }) => {
       >
         Informazioni
       </Button>
-      <IconButton 
-        color="inherit" 
-        onClick={toggleStatistics}
-        sx={{ ml: 1, mr: 1 }}
-        aria-label="Visualizza Statistiche"
-        title="Visualizza Statistiche"
-      >
-        <StatsIcon />
-      </IconButton>
-      <IconButton 
+      <Button 
         color="inherit" 
         onClick={toggleSettings}
-        sx={{ ml: 1 }}
+        startIcon={<SettingsIcon />}
+        sx={{ mr: 2 }}
         aria-label="Impostazioni"
         title="Impostazioni"
       >
-        <SettingsIcon />
-      </IconButton>
+        Impostazioni
+      </Button>
     </>
   );
   
@@ -127,9 +119,6 @@ const NavBar = ({ toggleSettings, toggleStatistics }) => {
         }}
       >
         <InfoIcon sx={{ mr: 1 }} /> Informazioni
-      </MenuItem>
-      <MenuItem onClick={() => { handleMenuClose(); toggleStatistics(); }}>
-        <StatsIcon sx={{ mr: 1 }} /> Visualizza Statistiche
       </MenuItem>
       <MenuItem onClick={() => { handleMenuClose(); toggleSettings(); }}>
         <SettingsIcon sx={{ mr: 1 }} /> Impostazioni
@@ -197,23 +186,25 @@ const NavBar = ({ toggleSettings, toggleStatistics }) => {
         </Box>
         
         {/* Navigation Links */}
-        {isMobile ? (
-          <>
-            <IconButton 
-              edge="end" 
-              color="inherit" 
-              aria-label="menu"
-              onClick={handleMenuOpen}
-            >
-              <MenuIcon />
-            </IconButton>
-            {mobileMenu}
-          </>
-        ) : (
-          <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
+        <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
+          {/* Desktop Navigation */}
+          <Box sx={{ display: { xs: 'none', sm: 'flex' } }}>
             {navLinks}
           </Box>
-        )}
+          
+          {/* Mobile Menu Button - only visible on mobile */}
+          <IconButton 
+            edge="end" 
+            color="inherit" 
+            aria-label="menu"
+            onClick={handleMenuOpen}
+            sx={{ display: { xs: 'flex', sm: 'none' } }}
+          >
+            <MenuIcon />
+          </IconButton>
+          {/* Mobile Menu */}
+          {mobileMenu}
+        </Box>
       </Toolbar>
     </AppBar>
   );
