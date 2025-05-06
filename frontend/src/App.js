@@ -99,15 +99,15 @@ function App() {
 
   const toggleSettings = () => {
     setShowSettings(prev => !prev);
-    setShowStatistics(false);
+    if (showStatistics) setShowStatistics(false); // Close statistics if open
   };
 
   const toggleStatistics = () => {
     setShowStatistics(prev => !prev);
-    setShowSettings(false);
+    if (showSettings) setShowSettings(false); // Close settings if open
   };
 
-  const handleAnalyze = async (text, url, results) => {
+  const handleAnalyze = async (text, url, resultsFromForm) => {
     setLoading(true);
     setError(null);
     setResults(null);
@@ -120,9 +120,10 @@ function App() {
     }
     
     try {
-      // If results are passed directly, use them instead of making an API call
-      if (results) {
-        setResults(results);
+      // If results are passed directly from AnalysisForm
+      if (resultsFromForm) {
+        setResults(resultsFromForm);
+        setLoading(false); 
         return;
       }
       
@@ -160,10 +161,8 @@ function App() {
   };
 
   const handleComparativeAnalysis = (comparativeResults) => {
-    setResults(null);
-    setLoading(false);
-    // Handle comparative results differently
     setResults(comparativeResults);
+    setLoading(false);
   };
 
   return (
@@ -186,6 +185,8 @@ function App() {
                   <main className="flex-grow container mx-auto px-4 py-8">
                     {showSettings ? (
                       <Settings 
+                        isOpen={showSettings}
+                        onClose={toggleSettings}
                         settings={settings} 
                         updateSettings={updateSettings} 
                       />
@@ -196,8 +197,7 @@ function App() {
                         <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
                           <AnalysisForm 
                             onAnalyze={handleAnalyze}
-                            setLoading={setLoading} 
-                            setError={setError} 
+                            settings={settings}
                           />
                         </div>
                         
@@ -240,7 +240,8 @@ function App() {
                 <AdvancedAnalysisForm 
                   onAnalysisComplete={handleComparativeAnalysis} 
                   settings={settings}
-                  updateSettings={updateSettings}
+                  updateSettings={updateSettings} 
+                  onOpenSettings={toggleSettings} // Added this prop
                 />
               } />
               <Route path="/stats" element={<StatsPage />} />

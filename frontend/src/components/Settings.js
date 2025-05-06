@@ -11,12 +11,13 @@ const Settings = ({ isOpen, onClose, settings, updateSettings }) => {
   const [error, setError] = useState(null);
   const [localSettings, setLocalSettings] = useState({ ...settings });
   const [activeTab, setActiveTab] = useState('analysis'); // 'analysis', 'categories', 'display'
+  const [saveMessage, setSaveMessage] = useState(''); // Added for save feedback
 
-  // Load indicators on mount and fetch latest settings
+  // Update local settings when parent settings change or modal opens
   useEffect(() => {
-    // Update local settings when parent settings change
     setLocalSettings({ ...settings });
-  }, [settings]);
+    setSaveMessage(''); // Clear message when settings/modal state changes
+  }, [settings, isOpen]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -65,17 +66,18 @@ const Settings = ({ isOpen, onClose, settings, updateSettings }) => {
   };
 
   const handleSave = () => {
-    // Update parent component's settings
     updateSettings(localSettings);
-    
-    // Store settings in localStorage
     try {
       localStorage.setItem('antifaModelSettings', JSON.stringify(localSettings));
+      setSaveMessage('Impostazioni salvate con successo!');
+      setTimeout(() => setSaveMessage(''), 3000); // Clear message after 3 seconds
     } catch (e) {
       console.error('Error saving settings to localStorage:', e);
+      setSaveMessage('Errore durante il salvataggio delle impostazioni.');
+      setTimeout(() => setSaveMessage(''), 5000); // Clear error message after 5 seconds
     }
-    
-    onClose();
+    // Optionally, you might want to close the modal on save, or let the user close it.
+    // onClose(); // Uncomment if modal should close on save
   };
 
   // Select or deselect all categories
@@ -154,6 +156,13 @@ const Settings = ({ isOpen, onClose, settings, updateSettings }) => {
           </div>
         )}
 
+        {/* Save Feedback Message */}
+        {saveMessage && (
+          <div className={`mb-4 p-3 rounded-md ${saveMessage.includes('successo') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+            {saveMessage}
+          </div>
+        )}
+
         {/* Tabs Navigation */}
         <div className="border-b border-gray-200 mb-6">
           <nav className="-mb-px flex space-x-4" aria-label="Tabs">
@@ -200,31 +209,31 @@ const Settings = ({ isOpen, onClose, settings, updateSettings }) => {
           </nav>
         </div>
         
-        {/* Type of Analysis - Always visible section */}
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold mb-4">Tipo di Analisi</h3>
-          <div className="space-y-2">
-            <select
-              id="analysisType"
-              name="analysisType"
-              value={localSettings.analysisType || 'standard'}
-              onChange={handleChange}
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
-            >
-              <option value="standard">Analisi Standard</option>
-              <option value="comparison">Analisi Comparativa</option>
-              <option value="historical">Analisi Storica</option>
-              <option value="trend">Analisi di Tendenza</option>
-            </select>
-            <p className="text-sm text-gray-500">
-              Il tipo di analisi determina come verranno elaborati i contenuti e presentati i risultati.
-            </p>
-          </div>
-        </div>
-        
         {/* Methods Tab Content */}
         {activeTab === 'analysis' && (
           <div className="mb-8">
+            {/* MOVED HERE: Type of Analysis Section */}
+            <div className="mb-8"> {/* Added mb-8 for spacing consistent with other sections */}
+              <h3 className="text-lg font-semibold mb-4">Tipo di Analisi</h3>
+              <div className="space-y-2">
+                <select
+                  id="analysisType"
+                  name="analysisType"
+                  value={localSettings.analysisType || 'standard'}
+                  onChange={handleChange}
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
+                >
+                  <option value="standard">Analisi Standard</option>
+                  <option value="comparison">Analisi Comparativa</option>
+                  <option value="historical">Analisi Storica</option>
+                  <option value="trend">Analisi di Tendenza</option>
+                </select>
+                <p className="text-sm text-gray-500">
+                  Il tipo di analisi determina come verranno elaborati i contenuti e presentati i risultati.
+                </p>
+              </div>
+            </div>
+
             <h3 className="text-lg font-semibold mb-4">Metodi di Analisi</h3>
             <p className="text-sm text-gray-600 mb-4">
               Seleziona i metodi da utilizzare per l'analisi del testo. Più metodi garantiscono risultati più accurati ma possono richiedere più tempo.

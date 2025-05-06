@@ -187,23 +187,23 @@ const NavBar = ({ toggleSettings, toggleStatistics }) => {
         
         {/* Navigation Links */}
         <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
-          {/* Desktop Navigation */}
-          <Box sx={{ display: { xs: 'none', sm: 'flex' } }}>
-            {navLinks}
-          </Box>
-          
-          {/* Mobile Menu Button - only visible on mobile */}
-          <IconButton 
-            edge="end" 
-            color="inherit" 
-            aria-label="menu"
-            onClick={handleMenuOpen}
-            sx={{ display: { xs: 'flex', sm: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
-          {/* Mobile Menu */}
-          {mobileMenu}
+          {isMobile ? (
+            <>
+              <IconButton 
+                edge="end" 
+                color="inherit" 
+                aria-label="menu"
+                onClick={handleMenuOpen}
+              >
+                <MenuIcon />
+              </IconButton>
+              {mobileMenu}
+            </>
+          ) : (
+            <Box sx={{ display: 'flex' }}>
+              {navLinks}
+            </Box>
+          )}
         </Box>
       </Toolbar>
     </AppBar>

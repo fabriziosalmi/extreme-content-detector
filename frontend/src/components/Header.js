@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Header = ({ toggleSettings, toggleStatistics, showSettings, showStatistics }) => {
+const Header = () => {
   // Since we moved the title and settings button to the navbar,
   // we'll simplify this header to just show a welcome message and brief instructions
   return (
