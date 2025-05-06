@@ -22,11 +22,18 @@ import Statistics from './components/Statistics';
 
 // Default settings configuration
 const defaultSettings = {
-  enableKeywordMatching: true,
-  enableContextAnalysis: true,
-  enableFrequencyAnalysis: true,
-  enableProximityAnalysis: true,
-  enablePatternMatching: true,
+  methods: {
+    keywordMatching: true,
+    contextAnalysis: true,
+    frequencyAnalysis: true,
+    proximityAnalysis: true,
+    patternMatching: true,
+    sentimentAnalysis: false,
+    nounPhraseAnalysis: false,
+    propagandaTechniqueAnalysis: false,
+    topicCoherenceAnalysis: false,
+    rhetoricalDeviceAnalysis: false
+  },
   thresholds: {
     minKeywordStrength: 'low',
     minOccurrences: 1,
@@ -46,7 +53,8 @@ const defaultSettings = {
   ],
   displayMode: 'detailed',
   highlightMatches: true,
-  analysisType: 'standard'
+  analysisType: 'standard',
+  showEvidenceFactors: true
 };
 
 // Create a theme
@@ -123,13 +131,7 @@ function App() {
         text,
         url,
         settings: {
-          methods: {
-            keywordMatching: settings.enableKeywordMatching,
-            contextAnalysis: settings.enableContextAnalysis,
-            frequencyAnalysis: settings.enableFrequencyAnalysis,
-            proximityAnalysis: settings.enableProximityAnalysis,
-            patternMatching: settings.enablePatternMatching
-          },
+          methods: settings.methods,
           thresholds: settings.thresholds,
           categories: settings.categories
             .filter(cat => cat.enabled)
@@ -137,7 +139,8 @@ function App() {
         }
       };
       
-      const API_URL = 'http://localhost:8000';
+      // Use environment variable or fallback to localhost
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
       const response = await axios.post(`${API_URL}/analyze`, payload);
       
       setResults(response.data);

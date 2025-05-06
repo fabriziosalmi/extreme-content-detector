@@ -2,6 +2,9 @@
  * Utility functions for handling API requests and responses
  */
 
+// Get the API URL from environment variable or use default
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
 /**
  * Makes an API request to analyze text or a URL
  * @param {Object} data - The data to send to the API
@@ -10,7 +13,7 @@
  */
 export const analyzeContent = async (data, onComplete, onError) => {
   try {
-    const response = await fetch('/api/analyze', {
+    const response = await fetch(`${API_URL}/analyze`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -50,7 +53,7 @@ export const analyzeContent = async (data, onComplete, onError) => {
  */
 export const fetchIndicators = async (onSuccess, onError) => {
   try {
-    const response = await fetch('/api/indicators');
+    const response = await fetch(`${API_URL}/indicators`);
     
     if (!response.ok) {
       throw new Error('Failed to fetch indicators');
@@ -77,7 +80,7 @@ export const fetchIndicators = async (onSuccess, onError) => {
  */
 export const fetchStats = async (onSuccess, onError) => {
   try {
-    const response = await fetch('/api/stats');
+    const response = await fetch(`${API_URL}/stats`);
     
     if (!response.ok) {
       throw new Error('Failed to fetch statistics');

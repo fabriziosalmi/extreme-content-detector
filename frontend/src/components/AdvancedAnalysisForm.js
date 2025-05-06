@@ -12,7 +12,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 /**
  * Advanced analysis component supporting comparison between texts or URLs
  */
-const AdvancedAnalysisForm = ({ onAnalysisComplete }) => {
+const AdvancedAnalysisForm = ({ onAnalysisComplete, settings, updateSettings }) => {
   // State for inputs
   const [source1, setSource1] = useState({
     type: 'text',
@@ -26,18 +26,8 @@ const AdvancedAnalysisForm = ({ onAnalysisComplete }) => {
     url: ''
   });
   
-  // Analysis settings
-  const [settings, setSettings] = useState({
-    analysisType: 'comparison', // comparison, historical, trend
-    indicators: [],
-    methods: {
-      keywordMatching: true,
-      contextAnalysis: true,
-      frequencyAnalysis: true,
-      proximityAnalysis: false,
-      patternMatching: true
-    }
-  });
+  // Analysis type
+  const [analysisType, setAnalysisType] = useState('comparison');
   
   // UI state
   const [loading, setLoading] = useState(false);
@@ -48,7 +38,9 @@ const AdvancedAnalysisForm = ({ onAnalysisComplete }) => {
   useEffect(() => {
     const fetchIndicators = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/indicators`);
+        // Use environment variable or fallback to localhost
+        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+        const response = await axios.get(`${API_URL}/indicators`);
         setAllIndicators(response.data.indicators || []);
       } catch (err) {
         console.error('Error fetching indicators:', err);
@@ -75,30 +67,26 @@ const AdvancedAnalysisForm = ({ onAnalysisComplete }) => {
   };
   
   const handleMethodChange = (method) => {
-    setSettings(prev => ({
-      ...prev,
+    updateSettings({
+      ...settings,
       methods: {
-        ...prev.methods,
-        [method]: !prev.methods[method]
+        ...settings.methods,
+        [method]: !settings.methods[method]
       }
-    }));
+    });
   };
   
   const handleIndicatorSelection = (indicatorId) => {
-    setSettings(prev => {
-      const newIndicators = [...prev.indicators];
-      const index = newIndicators.indexOf(indicatorId);
-      
-      if (index === -1) {
-        newIndicators.push(indicatorId);
-      } else {
-        newIndicators.splice(index, 1);
-      }
-      
-      return {
-        ...prev,
-        indicators: newIndicators
-      };
+    // Use the enabled property in the categories array
+    const updatedCategories = settings.categories.map(cat => 
+      cat.id === indicatorId
+        ? {...cat, enabled: !cat.enabled}
+        : cat
+    );
+    
+    updateSettings({
+      ...settings,
+      categories: updatedCategories
     });
   };
   
@@ -110,7 +98,7 @@ const AdvancedAnalysisForm = ({ onAnalysisComplete }) => {
     
     try {
       // Prepare request based on analysis type
-      if (settings.analysisType === 'comparison') {
+      if (analysisType === 'comparison') {
         const requestData = {
           text1: source1.type === 'text' ? source1.text : null,
           url1: source1.type === 'url' ? source1.url : null,
@@ -118,7 +106,9 @@ const AdvancedAnalysisForm = ({ onAnalysisComplete }) => {
           url2: source2.type === 'url' ? source2.url : null,
           settings: {
             methods: settings.methods,
-            categories: settings.indicators
+            categories: settings.categories
+              .filter(cat => cat.enabled)
+              .map(cat => cat.id)
           }
         };
         
@@ -152,9 +142,9 @@ const AdvancedAnalysisForm = ({ onAnalysisComplete }) => {
           <InputLabel id="analysis-type-label">Tipo di Analisi</InputLabel>
           <Select
             labelId="analysis-type-label"
-            value={settings.analysisType}
+            value={analysisType}
             label="Tipo di Analisi"
-            onChange={(e) => setSettings({...settings, analysisType: e.target.value})}
+            onChange={(e) => setAnalysisType(e.target.value)}
           >
             <MenuItem value="comparison">Analisi Comparativa</MenuItem>
             <MenuItem value="historical">Analisi Storica</MenuItem>
@@ -165,7 +155,7 @@ const AdvancedAnalysisForm = ({ onAnalysisComplete }) => {
         <Divider sx={{ my: 2 }} />
         
         {/* Comparison Analysis UI */}
-        {settings.analysisType === 'comparison' && (
+        {analysisType === 'comparison' && (
           <Grid container spacing={3}>
             {/* Source 1 */}
             <Grid item xs={12} md={6}>
@@ -316,21 +306,22 @@ const AdvancedAnalysisForm = ({ onAnalysisComplete }) => {
         <Typography variant="h6" gutterBottom>
           Categorie di Indicatori
         </Typography>
+        
         <Typography variant="body2" color="text.secondary" paragraph>
           Seleziona le categorie specifiche da analizzare o lascia vuoto per analizzarle tutte
         </Typography>
         
         <Grid container spacing={2}>
-          {allIndicators.map(indicator => (
-            <Grid item xs={12} sm={6} md={4} key={indicator.id}>
+          {settings.categories.map(category => (
+            <Grid item xs={12} sm={6} md={4} key={category.id}>
               <FormControlLabel
                 control={
                   <Switch 
-                    checked={settings.indicators.includes(indicator.id)}
-                    onChange={() => handleIndicatorSelection(indicator.id)}
+                    checked={category.enabled}
+                    onChange={() => handleIndicatorSelection(category.id)}
                   />
                 }
-                label={indicator.name}
+                label={category.name}
               />
             </Grid>
           ))}

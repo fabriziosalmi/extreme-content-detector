@@ -6,14 +6,19 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend/logs:/app/logs
-      - ./backend/cache:/app/cache
+      - ./backend:/app
+      - /app/logs
+      - /app/cache
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s
       timeout: 10s
       retries: 5
+    environment:
+      - LOG_LEVEL=info
+    networks:
+      - antifa-network
 
   frontend:
     build: ./frontend
@@ -23,4 +28,10 @@ services:
       - backend
     restart: unless-stopped
     environment:
-      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_API_URL=http://backend:8000
+    networks:
+      - antifa-network
+
+networks:
+  antifa-network:
+    driver: bridge

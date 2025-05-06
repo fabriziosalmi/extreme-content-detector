@@ -10,11 +10,18 @@ import axios from 'axios';
 
 // Default settings configuration
 const defaultSettings = {
-  enableKeywordMatching: true,
-  enableContextAnalysis: false,
-  enableFrequencyAnalysis: false,
-  enableProximityAnalysis: false,
-  enablePatternMatching: false,
+  methods: {
+    keywordMatching: true,
+    contextAnalysis: false,
+    frequencyAnalysis: false,
+    proximityAnalysis: false,
+    patternMatching: false,
+    sentimentAnalysis: false,
+    nounPhraseAnalysis: false,
+    propagandaTechniqueAnalysis: false,
+    topicCoherenceAnalysis: false,
+    rhetoricalDeviceAnalysis: false
+  },
   thresholds: {
     minKeywordStrength: 'low',
     minOccurrences: 1,
@@ -33,7 +40,9 @@ const defaultSettings = {
     { id: 'enemy_otherization', name: 'Demonizzazione del Nemico', enabled: true },
   ],
   displayMode: 'detailed',
-  highlightMatches: true
+  highlightMatches: true,
+  showEvidenceFactors: true,
+  analysisType: 'standard'
 };
 
 function App() {
@@ -82,13 +91,7 @@ function App() {
         text,
         url,
         settings: {
-          methods: {
-            keywordMatching: settings.enableKeywordMatching,
-            contextAnalysis: settings.enableContextAnalysis,
-            frequencyAnalysis: settings.enableFrequencyAnalysis,
-            proximityAnalysis: settings.enableProximityAnalysis,
-            patternMatching: settings.enablePatternMatching
-          },
+          methods: settings.methods,
           thresholds: settings.thresholds,
           categories: settings.categories
             .filter(cat => cat.enabled)
@@ -132,6 +135,7 @@ function App() {
                 onAnalyze={handleAnalyze}
                 setLoading={setLoading} 
                 setError={setError} 
+                analysisType={settings.analysisType}
               />
             </div>
             
@@ -157,10 +161,9 @@ function App() {
             
             {!loading && results && (
               <ResultsDisplay 
-                results={results} 
-                displayMode={settings.displayMode} 
-                highlightMatches={settings.highlightMatches}
+                results={results}
                 originalText={originalText}
+                settings={settings}
               />
             )}
           </>

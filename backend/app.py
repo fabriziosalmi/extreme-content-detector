@@ -48,7 +48,7 @@ async def shutdown_event():
 # Configure CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Only allow the frontend origin in development
+    allow_origins=["http://localhost:3000", "http://localhost:8000", "*"],  # Allow connections from various sources
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -66,7 +66,12 @@ class AnalysisSettings(BaseModel):
             "contextAnalysis": False,
             "frequencyAnalysis": False,
             "proximityAnalysis": False,
-            "patternMatching": False
+            "patternMatching": False,
+            "sentimentAnalysis": False,
+            "nounPhraseAnalysis": False,
+            "propagandaTechniqueAnalysis": False,
+            "topicCoherenceAnalysis": False,
+            "rhetoricalDeviceAnalysis": False
         },
         description="Metodi di analisi da utilizzare"
     )

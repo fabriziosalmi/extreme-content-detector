@@ -1141,6 +1141,495 @@ class TextAnalyzer:
         
         return enhanced_results
     
+    def _topic_coherence_analysis(self, 
+                               text: str, 
+                               sentences: List[str], 
+                               indicator_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Analyze topic coherence to detect consistent ideological narratives.
+        
+        Args:
+            text: The preprocessed text
+            sentences: List of sentences
+            indicator_results: Initial results from keyword matching
+            
+        Returns:
+            Enhanced indicator results with topic coherence data
+        """
+        # Skip empty data
+        if not sentences or not indicator_results:
+            return indicator_results
+            
+        # Define ideological topic keywords by category
+        topic_keywords = {
+            "extreme_nationalism": [
+                "patria", "nazione", "italia", "italiano", "italiani", "identità", "sangue",
+                "razza", "tradizione", "orgoglio", "tricolore", "sovranità", "confini"
+            ],
+            "revisionism": [
+                "storia", "verità", "manipolazione", "menzogna", "propaganda", "bugie",
+                "falsificazione", "revisionismo", "vincitori", "esagerazione"
+            ],
+            "hate_speech": [
+                "invasione", "sostituzione", "immigrati", "etnico", "piano", "criminali",
+                "degrado", "islamizzazione", "incompatibile", "kalergi"
+            ],
+            "anti_democracy": [
+                "democrazia", "corrotta", "parlamento", "inutile", "inefficace", "decisione",
+                "leader", "forte", "comando", "ordine", "autorità", "necessità"
+            ],
+            "victimhood": [
+                "vittima", "minacciati", "attaccati", "perseguitati", "discriminati",
+                "complotto", "silenzio", "cancellare", "identità", "pericolo"
+            ],
+            "enemy_otherization": [
+                "nemici", "minaccia", "loro", "questi", "diversi", "stranieri", "traditori",
+                "pericolo", "disegno", "complice", "contaminare", "distruggere"
+            ]
+        }
+        
+        # Count topic keywords per category
+        topic_counts = {}
+        for category, keywords in topic_keywords.items():
+            count = 0
+            matches = []
+            
+            # Simple counting approach
+            for keyword in keywords:
+                pattern = r'\b' + re.escape(keyword) + r'\w*\b'  # Match word stems
+                for match in re.finditer(pattern, text):
+                    count += 1
+                    matches.append(match.group(0))
+                    
+            if count > 0:
+                topic_counts[category] = {
+                    "count": count,
+                    "examples": matches[:5]  # Keep up to 5 examples
+                }
+        
+        # Calculate sentence-level topic coherence 
+        coherent_segments = []
+        
+        # Check each sentence for multiple topic words
+        for i, sentence in enumerate(sentences):
+            categories_in_sentence = {}
+            
+            for category, keywords in topic_keywords.items():
+                matches = []
+                for keyword in keywords:
+                    pattern = r'\b' + re.escape(keyword) + r'\w*\b'
+                    for match in re.finditer(pattern, sentence):
+                        matches.append(match.group(0))
+                
+                if matches:
+                    categories_in_sentence[category] = matches
+                    
+            # If sentence contains words from multiple categories, consider it coherent
+            if len(categories_in_sentence) >= 2:
+                coherent_segments.append({
+                    "sentence_idx": i,
+                    "sentence": sentence,
+                    "categories": list(categories_in_sentence.keys()),
+                    "matches": categories_in_sentence
+                })
+        
+        # Enhance results with topic coherence data
+        enhanced_results = []
+        
+        for indicator in indicator_results:
+            indicator_with_coherence = indicator.copy()
+            indicator_id = indicator["indicator_id"]
+            
+            # Find matching topic for this indicator
+            matching_topics = [cat for cat in topic_counts.keys() 
+                              if cat == indicator_id or 
+                              (cat in indicator_id or indicator_id in cat)]
+            
+            # Add coherence data if applicable
+            if matching_topics:
+                all_topic_data = {topic: topic_counts[topic] for topic in matching_topics if topic in topic_counts}
+                
+                if all_topic_data:
+                    indicator_with_coherence["topic_coherence"] = {
+                        "topic_data": all_topic_data,
+                        "coherent_segments": [seg for seg in coherent_segments 
+                                             if any(topic in seg["categories"] for topic in matching_topics)][:3]
+                    }
+                    
+                    # Calculate coherence score
+                    total_matches = sum(data["count"] for data in all_topic_data.values())
+                    coherent_sentences = len(indicator_with_coherence["topic_coherence"]["coherent_segments"])
+                    
+                    # Adjust indicator strength based on topic coherence
+                    if total_matches > 10 and coherent_sentences >= 2:
+                        if indicator_with_coherence["overall_strength"] != "high":
+                            indicator_with_coherence["overall_strength"] = "high"
+                    elif total_matches > 5 and coherent_sentences >= 1:
+                        if indicator_with_coherence["overall_strength"] == "low":
+                            indicator_with_coherence["overall_strength"] = "medium"
+            
+            enhanced_results.append(indicator_with_coherence)
+        
+        return enhanced_results
+    
+    def _rhetorical_device_analysis(self,
+                                   text: str,
+                                   sentences: List[str],
+                                   indicator_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Analyze rhetorical devices commonly used in extremist rhetoric.
+        
+        Args:
+            text: The preprocessed text
+            sentences: List of sentences
+            indicator_results: Initial results from keyword matching
+            
+        Returns:
+            Enhanced indicator results with rhetorical device data
+        """
+        if not sentences or not indicator_results:
+            return indicator_results
+            
+        # Common rhetorical devices used in extremist rhetoric
+        rhetorical_devices = {
+            "repetition": [
+                r'(\b\w+\b)(?:\s+\w+){0,3}?\s+\1(?:\s+\w+){0,3}?\s+\1\b',  # Same word used 3 times in proximity
+                r'(\b\w{7,}\b)(?:\s+\w+){0,5}?\s+\1\b'  # Uncommon longer word repeated
+            ],
+            "slogans": [
+                r'\b(italia agli italiani|prima gli italiani|padroni a casa nostra|difendiamo i confini)\b',
+                r'\b(traditori della patria|nemici del popolo|amici dei banchieri)\b'
+            ],
+            "hyperbole": [
+                r'\b(sempre|mai|tutti|nessuno|impossibile|inaccettabile|assolutamente)\b',
+                r'\b(catastrofe|disastro|apocalisse|invasione|estinzione|distruzione)\b'
+            ],
+            "dehumanization": [
+                r'\b(parassiti|virus|malattia|cancro|piaga|problema)\b(?:\s+\w+){0,5}?\b(societ[aà]|nazione|italia|paese)\b',
+                r'\b(bestie|animali|selvaggi|barbari)\b'
+            ],
+            "false_dilemma": [
+                r'\b(o|oppure|altrimenti)\b(?:\s+\w+){0,3}?\b(o|oppure|altrimenti)\b',
+                r'\b(non c[i\']è|senza)\b(?:\s+\w+){0,3}?\b(alternativa|altra scelta|via di mezzo)\b'
+            ],
+            "loaded_questions": [
+                r'\b(chi|come|quando|perché)\b(?:\s+\w+){0,10}?\b(ancora|continua|permette|tollera|accetta|consente)\b',
+                r'\b(fino a quando|per quanto tempo ancora)\b'
+            ],
+            "appeal_to_authority": [
+                r'\b(esperti|scienziati|studi|ricerche|statistiche)\b(?:\s+\w+){0,5}?\b(dimostrano|provano|confermano)\b',
+                r'\b(la storia|il passato)\b(?:\s+\w+){0,5}?\b(insegna|dimostra|prova)\b'
+            ]
+        }
+        
+        # Find all rhetorical devices in the text
+        device_matches = {}
+        
+        for device, patterns in rhetorical_devices.items():
+            matches = []
+            for pattern in patterns:
+                for match in re.finditer(pattern, text, re.IGNORECASE):
+                    matches.append(match.group(0))
+            
+            if matches:
+                device_matches[device] = matches
+                
+        # Calculate rhetorical intensity score
+        total_devices = len(device_matches)
+        total_instances = sum(len(matches) for matches in device_matches.values())
+        
+        # Check for escalating rhetoric
+        escalating_rhetoric = False
+        for i in range(len(sentences) - 5):
+            window = " ".join(sentences[i:i+5])
+            
+            # Check if a smaller window contains multiple rhetorical devices
+            window_devices = sum(1 for device, patterns in rhetorical_devices.items()
+                               for pattern in patterns
+                               for match in re.finditer(pattern, window, re.IGNORECASE))
+            
+            if window_devices >= 3:
+                escalating_rhetoric = True
+                break
+        
+        # Enhance results with rhetorical device data
+        enhanced_results = []
+        
+        for indicator in indicator_results:
+            indicator_with_rhetoric = indicator.copy()
+            
+            # Add rhetorical device data
+            indicator_with_rhetoric["rhetorical_devices"] = {
+                "devices_found": {
+                    device: examples[:3] for device, examples in device_matches.items()
+                },
+                "total_devices": total_devices,
+                "total_instances": total_instances,
+                "escalating_rhetoric": escalating_rhetoric
+            }
+            
+            # Adjust indicator strength based on rhetorical intensity
+            if escalating_rhetoric or total_devices >= 4 or total_instances >= 7:
+                if indicator_with_rhetoric["overall_strength"] != "high":
+                    indicator_with_rhetoric["overall_strength"] = "high"
+            elif total_devices >= 2 or total_instances >= 4:
+                if indicator_with_rhetoric["overall_strength"] == "low":
+                    indicator_with_rhetoric["overall_strength"] = "medium"
+            
+            enhanced_results.append(indicator_with_rhetoric)
+        
+        return enhanced_results
+    
+    def _weighted_analysis_combination(self, 
+                                     results: List[Dict[str, Any]], 
+                                     used_methods: Dict[str, bool]) -> List[Dict[str, Any]]:
+        """
+        Combine all analysis methods with intelligent weighting to produce final results.
+        
+        Args:
+            results: Initial analysis results
+            used_methods: Dictionary of methods used in the analysis
+            
+        Returns:
+            Combined and weighted final results
+        """
+        if not results:
+            return results
+            
+        # Define method weights in final scoring
+        method_weights = {
+            "keywordMatching": 1.0,        # Base method
+            "frequencyAnalysis": 0.8,       # Weight frequency analysis heavily
+            "proximityAnalysis": 0.7,       # Proximity shows relation between concepts
+            "contextAnalysis": 0.6,         # Context provides semantic understanding
+            "patternMatching": 0.9,         # Complex patterns are strong indicators
+            "sentimentAnalysis": 0.4,       # Sentiment provides emotional context
+            "nounPhraseAnalysis": 0.7,      # Noun phrases show ideological concepts
+            "propagandaTechniqueAnalysis": 0.9,  # Propaganda techniques are strong indicators
+            "topicCoherenceAnalysis": 0.8,   # Topic coherence shows consistent narrative
+            "rhetoricalDeviceAnalysis": 0.8   # Rhetorical devices are persuasion techniques
+        }
+        
+        # Define strength score mappings
+        strength_scores = {
+            "low": 1,
+            "medium": 2,
+            "high": 3
+        }
+        
+        # Calculate weighted scores for each indicator
+        enhanced_results = []
+        
+        for indicator in results:
+            indicator_score = 0.0
+            evidence_factors = []
+            
+            # Start with base keyword matching score (using highest keyword strength)
+            if "found_keywords" in indicator and indicator["found_keywords"]:
+                # Get highest strength keyword
+                highest_strength = max(kw["strength"] for kw in indicator["found_keywords"])
+                base_score = strength_scores.get(highest_strength, 1)
+                indicator_score += base_score * method_weights["keywordMatching"]
+                evidence_factors.append({
+                    "method": "keywordMatching",
+                    "contribution": base_score * method_weights["keywordMatching"],
+                    "evidence": f"{len(indicator['found_keywords'])} keywords found, highest strength: {highest_strength}"
+                })
+            
+            # Add score from frequency analysis
+            if "frequency_data" in indicator and used_methods.get("frequencyAnalysis"):
+                density = indicator["frequency_data"]["density"]
+                freq_score = 1  # Low
+                
+                if density > 2.0:
+                    freq_score = 3  # High
+                elif density > 1.0:
+                    freq_score = 2  # Medium
+                    
+                indicator_score += freq_score * method_weights["frequencyAnalysis"]
+                evidence_factors.append({
+                    "method": "frequencyAnalysis",
+                    "contribution": freq_score * method_weights["frequencyAnalysis"],
+                    "evidence": f"Keyword density: {density:.2f}%, occurrences: {indicator['frequency_data']['total_occurrences']}"
+                })
+            
+            # Add score from proximity analysis
+            if "proximity_matches" in indicator and used_methods.get("proximityAnalysis"):
+                proximity_matches = indicator["proximity_matches"]
+                close_matches = sum(1 for match in proximity_matches if match["distance"] < 10)
+                
+                prox_score = 1  # Low
+                if close_matches >= 3:
+                    prox_score = 3  # High
+                elif close_matches >= 1:
+                    prox_score = 2  # Medium
+                    
+                indicator_score += prox_score * method_weights["proximityAnalysis"]
+                evidence_factors.append({
+                    "method": "proximityAnalysis",
+                    "contribution": prox_score * method_weights["proximityAnalysis"],
+                    "evidence": f"{len(proximity_matches)} proximity matches, {close_matches} close matches"
+                })
+            
+            # Add score from context analysis
+            if "contextual_amplifiers" in indicator and used_methods.get("contextAnalysis"):
+                amplifiers = indicator["contextual_amplifiers"]
+                
+                context_score = 1  # Low
+                if len(amplifiers) >= 3:
+                    context_score = 3  # High
+                elif len(amplifiers) >= 1:
+                    context_score = 2  # Medium
+                    
+                indicator_score += context_score * method_weights["contextAnalysis"]
+                evidence_factors.append({
+                    "method": "contextAnalysis",
+                    "contribution": context_score * method_weights["contextAnalysis"],
+                    "evidence": f"{len(amplifiers)} contextual amplifiers found"
+                })
+            
+            # Add score from pattern matching
+            if "pattern_matches" in indicator and used_methods.get("patternMatching"):
+                pattern_matches = indicator["pattern_matches"]
+                
+                pattern_score = 2  # Medium (pattern matches are significant)
+                if len(pattern_matches) >= 3:
+                    pattern_score = 3  # High
+                    
+                indicator_score += pattern_score * method_weights["patternMatching"]
+                evidence_factors.append({
+                    "method": "patternMatching",
+                    "contribution": pattern_score * method_weights["patternMatching"],
+                    "evidence": f"{len(pattern_matches)} complex patterns found"
+                })
+            
+            # Add score from sentiment analysis
+            if "sentiment_data" in indicator and used_methods.get("sentimentAnalysis"):
+                sentiment_data = indicator["sentiment_data"]
+                threat_score = sentiment_data["threat_score"]
+                total_words = sum(1 for _ in indicator.get("text", "").split())
+                if total_words == 0:
+                    total_words = 100  # Fallback to avoid division by zero
+                
+                sentiment_score = 1  # Low
+                if threat_score > 5 and threat_score / total_words > 0.02:
+                    sentiment_score = 3  # High
+                elif threat_score > 2:
+                    sentiment_score = 2  # Medium
+                    
+                indicator_score += sentiment_score * method_weights["sentimentAnalysis"]
+                evidence_factors.append({
+                    "method": "sentimentAnalysis",
+                    "contribution": sentiment_score * method_weights["sentimentAnalysis"],
+                    "evidence": f"Threat score: {threat_score}, positive: {sentiment_data['positive_score']}, negative: {sentiment_data['negative_score']}"
+                })
+            
+            # Add score from noun phrase analysis
+            if "noun_phrase_matches" in indicator and used_methods.get("nounPhraseAnalysis"):
+                noun_phrase_data = indicator["noun_phrase_matches"]
+                total_phrases = sum(len(phrases) for phrases in noun_phrase_data.values())
+                
+                phrase_score = 1  # Low
+                if total_phrases >= 5:
+                    phrase_score = 3  # High
+                elif total_phrases >= 2:
+                    phrase_score = 2  # Medium
+                    
+                indicator_score += phrase_score * method_weights["nounPhraseAnalysis"]
+                evidence_factors.append({
+                    "method": "nounPhraseAnalysis",
+                    "contribution": phrase_score * method_weights["nounPhraseAnalysis"],
+                    "evidence": f"{total_phrases} ideological phrases found in {len(noun_phrase_data)} categories"
+                })
+            
+            # Add score from propaganda technique analysis
+            if "propaganda_techniques" in indicator and used_methods.get("propagandaTechniqueAnalysis"):
+                propaganda_data = indicator["propaganda_techniques"]
+                total_techniques = len(propaganda_data)
+                total_instances = sum(len(instances) for instances in propaganda_data.values())
+                
+                propaganda_score = 1  # Low
+                if total_techniques >= 3 or total_instances >= 5:
+                    propaganda_score = 3  # High
+                elif total_techniques >= 2 or total_instances >= 3:
+                    propaganda_score = 2  # Medium
+                    
+                indicator_score += propaganda_score * method_weights["propagandaTechniqueAnalysis"]
+                evidence_factors.append({
+                    "method": "propagandaTechniqueAnalysis",
+                    "contribution": propaganda_score * method_weights["propagandaTechniqueAnalysis"],
+                    "evidence": f"{total_techniques} propaganda techniques found with {total_instances} instances"
+                })
+            
+            # Add score from topic coherence analysis
+            if "topic_coherence" in indicator and used_methods.get("topicCoherenceAnalysis"):
+                topic_data = indicator["topic_coherence"]["topic_data"]
+                coherent_segments = indicator["topic_coherence"]["coherent_segments"]
+                
+                total_matches = sum(data["count"] for data in topic_data.values())
+                
+                coherence_score = 1  # Low
+                if total_matches > 10 and len(coherent_segments) >= 2:
+                    coherence_score = 3  # High
+                elif total_matches > 5 and len(coherent_segments) >= 1:
+                    coherence_score = 2  # Medium
+                    
+                indicator_score += coherence_score * method_weights["topicCoherenceAnalysis"]
+                evidence_factors.append({
+                    "method": "topicCoherenceAnalysis",
+                    "contribution": coherence_score * method_weights["topicCoherenceAnalysis"],
+                    "evidence": f"{total_matches} topic keywords, {len(coherent_segments)} coherent segments"
+                })
+            
+            # Add score from rhetorical device analysis
+            if "rhetorical_devices" in indicator and used_methods.get("rhetoricalDeviceAnalysis"):
+                rhetorical_data = indicator["rhetorical_devices"]
+                total_devices = rhetorical_data["total_devices"]
+                total_instances = rhetorical_data["total_instances"]
+                escalating = rhetorical_data["escalating_rhetoric"]
+                
+                rhetoric_score = 1  # Low
+                if escalating or total_devices >= 4 or total_instances >= 7:
+                    rhetoric_score = 3  # High
+                elif total_devices >= 2 or total_instances >= 4:
+                    rhetoric_score = 2  # Medium
+                    
+                indicator_score += rhetoric_score * method_weights["rhetoricalDeviceAnalysis"]
+                evidence_factors.append({
+                    "method": "rhetoricalDeviceAnalysis",
+                    "contribution": rhetoric_score * method_weights["rhetoricalDeviceAnalysis"],
+                    "evidence": f"{total_devices} rhetorical devices, {total_instances} instances, escalating: {escalating}"
+                })
+            
+            # Calculate number of methods that contributed to the score
+            methods_used = len(evidence_factors)
+            
+            # Normalize the score based on methods used
+            normalized_score = indicator_score / max(1, sum(method_weights[m] for m, used in used_methods.items() if used))
+            
+            # Determine final strength based on normalized score
+            final_strength = "low"
+            if normalized_score >= 2.5:
+                final_strength = "high"
+            elif normalized_score >= 1.5:
+                final_strength = "medium"
+            
+            # Add combined analysis data
+            enhanced_indicator = indicator.copy()
+            enhanced_indicator["combined_analysis"] = {
+                "score": normalized_score,
+                "strength": final_strength,
+                "evidence_factors": evidence_factors,
+                "methods_used": methods_used
+            }
+            
+            # Update the overall strength
+            enhanced_indicator["overall_strength"] = final_strength
+            
+            enhanced_results.append(enhanced_indicator)
+        
+        return enhanced_results
+    
     def analyze_text(self, text: str, settings: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Analyze text for indicators of fascist rhetoric using methods specified in settings.
@@ -1171,7 +1660,9 @@ class TextAnalyzer:
                     "patternMatching": False,
                     "sentimentAnalysis": False,
                     "nounPhraseAnalysis": False,
-                    "propagandaTechniqueAnalysis": False
+                    "propagandaTechniqueAnalysis": False,
+                    "topicCoherenceAnalysis": False,
+                    "rhetoricalDeviceAnalysis": False
                 },
                 "thresholds": {
                     "minKeywordStrength": "low",
@@ -1253,6 +1744,19 @@ class TextAnalyzer:
         if methods.get("propagandaTechniqueAnalysis", False):
             used_methods["propagandaTechniqueAnalysis"] = True
             results = self._propaganda_technique_analysis(preprocessed_text, sentences, results)
+        
+        # 9. Topic coherence analysis (new)
+        if methods.get("topicCoherenceAnalysis", False):
+            used_methods["topicCoherenceAnalysis"] = True
+            results = self._topic_coherence_analysis(preprocessed_text, sentences, results)
+        
+        # 10. Rhetorical device analysis (new)
+        if methods.get("rhetoricalDeviceAnalysis", False):
+            used_methods["rhetoricalDeviceAnalysis"] = True
+            results = self._rhetorical_device_analysis(preprocessed_text, sentences, results)
+        
+        # Combine all analysis methods with intelligent weighting
+        results = self._weighted_analysis_combination(results, used_methods)
         
         analysis_results = {
             "total_indicators_found": len(results),

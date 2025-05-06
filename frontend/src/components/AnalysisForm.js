@@ -15,7 +15,7 @@ import axios from 'axios';
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 const GITHUB_REPO = 'https://github.com/fabriziosalmi/antifa-model';
 
-const AnalysisForm = ({ onAnalyze }) => {
+const AnalysisForm = ({ onAnalyze, settings, updateSettings }) => {
   // State for form inputs
   const [url, setUrl] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -24,35 +24,21 @@ const AnalysisForm = ({ onAnalyze }) => {
   const [indicators, setIndicators] = useState([]);
   const resultsRef = useRef(null);
   
-  // State for analysis settings
-  const [settings, setSettings] = useState({
-    methods: {
-      keywordMatching: true,
-      contextAnalysis: true,
-      frequencyAnalysis: true,
-      proximityAnalysis: true,
-      patternMatching: true,
-      sentimentAnalysis: false,
-      nounPhraseAnalysis: false,
-      propagandaTechniqueAnalysis: false
-    },
-    thresholds: {
-      minKeywordStrength: 'low',
-      minOccurrences: 1,
-      proximityDistance: 20
-    },
-    categories: []
-  });
-  
-  // Load indicators on component mount
+  // Load indicators on mount
   useEffect(() => {
     const fetchIndicators = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/indicators`);
+        setLoading(true);
+        // Use environment variable or fallback to localhost
+        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+        const response = await axios.get(`${API_URL}/indicators`);
         setIndicators(response.data.indicators || []);
+        setError(null);
       } catch (err) {
         console.error('Error fetching indicators:', err);
         setError('Failed to load indicators. The server might be unavailable.');
+      } finally {
+        setLoading(false);
       }
     };
     
@@ -73,7 +59,7 @@ const AnalysisForm = ({ onAnalyze }) => {
   
   // Handle settings changes
   const handleMethodChange = (method) => {
-    setSettings({
+    updateSettings({
       ...settings,
       methods: {
         ...settings.methods,
@@ -83,7 +69,7 @@ const AnalysisForm = ({ onAnalyze }) => {
   };
   
   const handleThresholdChange = (threshold, value) => {
-    setSettings({
+    updateSettings({
       ...settings,
       thresholds: {
         ...settings.thresholds,
@@ -93,41 +79,37 @@ const AnalysisForm = ({ onAnalyze }) => {
   };
   
   const handleCategoryChange = (categoryId) => {
-    const currentCategories = [...settings.categories];
-    const index = currentCategories.indexOf(categoryId);
+    // Use the enabled property in the categories array
+    const updatedCategories = settings.categories.map(cat => 
+      cat.id === categoryId 
+        ? {...cat, enabled: !cat.enabled} 
+        : cat
+    );
     
-    if (index === -1) {
-      // Add category
-      currentCategories.push(categoryId);
-    } else {
-      // Remove category
-      currentCategories.splice(index, 1);
-    }
-    
-    setSettings({
+    updateSettings({
       ...settings,
-      categories: currentCategories
+      categories: updatedCategories
     });
   };
 
   // Select or deselect all categories
   const handleSelectAllCategories = (selected) => {
-    if (selected) {
-      const allCategoryIds = indicators.map(indicator => indicator.id);
-      setSettings({
-        ...settings,
-        categories: allCategoryIds
-      });
-    } else {
-      setSettings({
-        ...settings,
-        categories: []
-      });
-    }
+    const updatedCategories = settings.categories.map(cat => ({
+      ...cat,
+      enabled: selected
+    }));
+    
+    updateSettings({
+      ...settings,
+      categories: updatedCategories
+    });
   };
   
   // Count selected methods
   const selectedMethodsCount = Object.values(settings.methods).filter(Boolean).length;
+  
+  // Count enabled categories
+  const enabledCategoriesCount = settings.categories.filter(cat => cat.enabled).length;
   
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -141,7 +123,9 @@ const AnalysisForm = ({ onAnalyze }) => {
         settings: {
           methods: settings.methods,
           thresholds: settings.thresholds,
-          categories: settings.categories.length > 0 ? settings.categories : undefined
+          categories: settings.categories
+            .filter(cat => cat.enabled)
+            .map(cat => cat.id)
         }
       };
       
@@ -200,6 +184,8 @@ const AnalysisForm = ({ onAnalyze }) => {
           label="Inserisci l'URL da analizzare"
           value={url}
           onChange={handleUrlChange}
+          error={Boolean(error && url === '')}
+          helperText={error && url === '' ? 'URL richiesto' : ''}
           fullWidth
           variant="outlined"
           placeholder="https://esempio.it/articolo"
@@ -225,12 +211,12 @@ const AnalysisForm = ({ onAnalyze }) => {
           sx={{ fontWeight: 500 }}
         />
         
-        {settings.categories.length > 0 ? (
+        {enabledCategoriesCount > 0 ? (
           <Chip 
             size="small" 
             color="secondary" 
             variant="outlined" 
-            label={`${settings.categories.length} categorie selezionate`}
+            label={`${enabledCategoriesCount} categorie selezionate`}
             sx={{ fontWeight: 500 }}
           />
         ) : (
@@ -338,6 +324,16 @@ const AnalysisForm = ({ onAnalyze }) => {
                   control={<Checkbox checked={settings.methods.propagandaTechniqueAnalysis} onChange={() => handleMethodChange('propagandaTechniqueAnalysis')} />}
                   label="Tecniche di Propaganda"
                 />
+                
+                <FormControlLabel
+                  control={<Checkbox checked={settings.methods.topicCoherenceAnalysis} onChange={() => handleMethodChange('topicCoherenceAnalysis')} />}
+                  label="Analisi di Coerenza Tematica"
+                />
+                
+                <FormControlLabel
+                  control={<Checkbox checked={settings.methods.rhetoricalDeviceAnalysis} onChange={() => handleMethodChange('rhetoricalDeviceAnalysis')} />}
+                  label="Dispositivi Retorici"
+                />
               </FormGroup>
             </Grid>
             
@@ -430,8 +426,8 @@ const AnalysisForm = ({ onAnalyze }) => {
               </Typography>
               
               <Grid container spacing={2}>
-                {Object.keys(categoryGroups).map((category) => (
-                  <Grid item xs={12} sm={6} md={4} key={category}>
+                {settings.categories.map((category) => (
+                  <Grid item xs={12} sm={6} md={4} key={category.id}>
                     <Paper 
                       variant="outlined" 
                       sx={{ 
@@ -441,22 +437,19 @@ const AnalysisForm = ({ onAnalyze }) => {
                       }}
                     >
                       <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                        {category}
+                        {category.name}
                       </Typography>
                       <FormGroup>
-                        {categoryGroups[category].map((indicator) => (
-                          <FormControlLabel
-                            key={indicator.id}
-                            control={
-                              <Checkbox
-                                size="small"
-                                checked={settings.categories.includes(indicator.id)}
-                                onChange={() => handleCategoryChange(indicator.id)}
-                              />
-                            }
-                            label={<Typography variant="body2">{indicator.name}</Typography>}
-                          />
-                        ))}
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              size="small"
+                              checked={category.enabled}
+                              onChange={() => handleCategoryChange(category.id)}
+                            />
+                          }
+                          label={<Typography variant="body2">{category.name}</Typography>}
+                        />
                       </FormGroup>
                     </Paper>
                   </Grid>
