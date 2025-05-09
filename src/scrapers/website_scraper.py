@@ -116,29 +116,20 @@ class WebsiteScraper:
             # Create a short excerpt of the content
             content_excerpt = content_text[:500] + "..." if len(content_text) > 500 else content_text
             
-            # Process content for analysis
-            from src.analysis.content_analyzer import ExtremismAnalyzer
-            analyzer = ExtremismAnalyzer(session=self.session)
-            scores = analyzer.analyze_text(content_text)
-            
-            # Create a new Content record with just the analysis results
+            # Create a new Content record (without analysis scores)
             content = Content(
                 website_id=website.id,
                 url=url,
                 title=title,
                 content_excerpt=content_excerpt,
-                scraped_date=datetime.datetime.utcnow(),
-                racist_score=scores.get('racist_score'),
-                fascist_score=scores.get('fascist_score'),
-                nazi_score=scores.get('nazi_score'),
-                far_right_score=scores.get('far_right_score'),
-                overall_extremism_score=scores.get('overall_extremism_score')
+                scraped_date=datetime.datetime.utcnow()
+                # Analysis scores will be populated later by the analyzer
             )
             
             # Save to database
             self.session.add(content)
             self.session.commit()
-            logger.info(f"Successfully processed and analyzed content from: {url}")
+            logger.info(f"Successfully processed and stored content excerpt from: {url}")
             return True
             
         except IntegrityError:
