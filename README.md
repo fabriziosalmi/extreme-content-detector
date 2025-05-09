@@ -2,6 +2,10 @@
 
 This application scrapes and analyzes websites for extremist content, producing analytics and visualizations to help track and understand extremist online presence.
 
+## Screenshots
+
+![screenshot1](https://github.com/fabriziosalmi/antifa-model/blob/main/screenshot_1.png?raw=true)
+
 ## Features
 
 - Website scraping and content analysis
