@@ -4,13 +4,11 @@ This module analyzes content using NLP techniques to identify and rank extremist
 """
 
 import logging
-import re
 import numpy as np
 from collections import Counter
 import nltk
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
 import spacy
+from spacy.matcher import Matcher
 from transformers import pipeline
 from sqlalchemy.sql import func
 import requests
@@ -36,7 +34,6 @@ class ExtremismAnalyzer:
     def __init__(self, session=None):
         """Initialize the analyzer with a database session."""
         self.session = session or get_session()
-        self.stop_words = set(stopwords.words('english'))
         
         logger.info("Loading spaCy model...")
         self.nlp = spacy.load("en_core_web_sm")
@@ -73,14 +70,25 @@ class ExtremismAnalyzer:
                 'western civilization', 'anti-immigration', 'anti-feminist', 'patriot'
             ]
         }
-        
-        # Compile regex patterns for keywords
-        self.keyword_patterns = {}
+
+        logger.info("Initializing spaCy Matchers for keyword analysis...")
+        self.matchers = {}
         for category, keywords in self.keyword_lists.items():
-            self.keyword_patterns[category] = [
-                re.compile(r'\b' + re.escape(kw.lower()) + r'\b') 
-                for kw in keywords
-            ]
+            matcher = Matcher(self.nlp.vocab)
+            for kw_phrase in keywords:
+                # Create a pattern for the keyword phrase based on lemmas
+                pattern = []
+                # Process the keyword phrase itself with spaCy to get lemmas
+                kw_doc = self.nlp(kw_phrase.lower())
+                for token in kw_doc:
+                    if not token.is_punct: # Ignore punctuation within keywords for robustness
+                        pattern.append({"LEMMA": token.lemma_})
+                
+                if pattern: # Ensure the pattern is not empty
+                    # Use a unique name for the rule, e.g., "racist_white_power"
+                    rule_id = f"{category}_{kw_phrase.replace(' ', '_')}"
+                    matcher.add(rule_id, [pattern])
+            self.matchers[category] = matcher
     
     def get_unanalyzed_content(self, limit=100):
         """Get content that hasn't been analyzed yet."""
@@ -194,26 +202,40 @@ class ExtremismAnalyzer:
             return False
     
     def _analyze_keywords(self, text):
-        """Analyze text for extremist keywords."""
-        text_lower = text.lower()
+        """Analyze text for extremist keywords using spaCy Matcher."""
+        doc = self.nlp(text)
         scores = {}
-        
-        for category, patterns in self.keyword_patterns.items():
-            matches = []
-            for pattern in patterns:
-                matches.extend(pattern.findall(text_lower))
-            
-            # Calculate score based on keyword density and diversity
-            word_count = len(word_tokenize(text))
-            if word_count > 0:
-                keyword_density = len(matches) / word_count
-                keyword_diversity = len(set(matches)) / len(self.keyword_lists[category]) if matches else 0
-                
-                # Combine density and diversity for final score
-                # Scale to 0-1 range
-                scores[category] = min(keyword_density * 100 + keyword_diversity, 1)
-            else:
+
+        # Use tokens that are not stop words or punctuation for word count
+        countable_tokens = [token for token in doc if not token.is_stop and not token.is_punct]
+        word_count = len(countable_tokens)
+
+        if word_count == 0:
+            for category in self.keyword_lists:
                 scores[category] = 0
+            return scores
+
+        for category, matcher in self.matchers.items():
+            found_matches = matcher(doc)
+            
+            # Total occurrences of any keyword in this category
+            num_matches_for_category = len(found_matches)
+            
+            # For diversity, count unique keywords matched
+            unique_matched_keyword_ids = set()
+            for match_id, start, end in found_matches:
+                unique_matched_keyword_ids.add(self.nlp.vocab.strings[match_id])
+
+            keyword_density = num_matches_for_category / word_count
+            
+            if self.keyword_lists[category]: # Avoid division by zero if a category has no keywords
+                keyword_diversity = len(unique_matched_keyword_ids) / len(self.keyword_lists[category])
+            else:
+                keyword_diversity = 0
+            
+            # Combine density and diversity for final score
+            # Scale to 0-1 range
+            scores[category] = min(keyword_density * 100 + keyword_diversity, 1)
         
         return scores
     
