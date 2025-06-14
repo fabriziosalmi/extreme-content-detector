@@ -1,4 +1,4 @@
-# Antifa Model - Extremist Content Analysis Application
+# Extremist Content Analysis Application
 
 This application scrapes and analyzes websites for extremist content, producing analytics and visualizations to help track and understand extremist online presence.
 
