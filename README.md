@@ -24,7 +24,7 @@ This application scrapes and analyzes websites for extremist content, producing 
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/antifa-model.git
+   git clone https://github.com/fabriziosalmi/extreme-content-detector.git
    cd antifa-model
    ```
 
